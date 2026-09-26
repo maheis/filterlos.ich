@@ -13,7 +13,7 @@ if (releaseKeyPropertiesFile.exists()) {
 }
 
 android {
-    namespace = "be.heister.filterlos"
+    namespace = "be.heister.filterlosich"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
