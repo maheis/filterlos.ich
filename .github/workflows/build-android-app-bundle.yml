@@ -72,10 +72,10 @@ jobs:
           storeFile=keystore.jks
           EOF
 
-      - name: verify release keystore is present
+      - name: verify release signing secrets are present
         run: |
-          if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "ERROR: KEYSTORE_BASE64 secret is empty. The build would be debug-signed. Aborting to avoid uploading a debug-signed build." >&2
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_PASSWORD" ] || [ -z "$KEY_ALIAS" ]; then
+            echo "ERROR: One or more Android release signing secrets are empty. Aborting the release build." >&2
             exit 1
           fi
 
