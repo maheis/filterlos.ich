@@ -1,0 +1,552 @@
+import 'dart:io';
+import 'dart:async';
+
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+
+import '../app_controller.dart';
+import '../ui_settings.dart';
+
+class SettingsPage extends StatefulWidget {
+  const SettingsPage({super.key, required this.controller});
+
+  final AppController controller;
+
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  late FilterlosSettings _draft = widget.controller.settings;
+  final _memoryController = TextEditingController();
+  bool _copyingModel = false;
+  bool _updatingMemory = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _memoryController.text = widget.controller.settings.userMemorySummary;
+  }
+
+  Future<void> _saveSettings() async {
+    _draft = _draft.copyWith(userMemorySummary: _memoryController.text.trim());
+    await widget.controller.updateSettings(_draft);
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Einstellungen gespeichert.')));
+  }
+
+  Future<void> _managePin() async {
+    final result = await showDialog<_PinChange>(
+      context: context,
+      builder: (_) => _PinDialog(hasPin: widget.controller.hasTimelinePin),
+    );
+    if (result == null) return;
+
+    try {
+      if (widget.controller.hasTimelinePin) {
+        final updated = await widget.controller.changePin(
+          result.currentPin,
+          result.newPin,
+        );
+        if (!updated) {
+          _showMessage('Die aktuelle PIN stimmt nicht.');
+          return;
+        }
+      } else {
+        await widget.controller.configurePin(result.newPin);
+      }
+      _showMessage('Timeline-PIN gespeichert.');
+      setState(() {});
+    } on ArgumentError catch (error) {
+      _showMessage(error.message?.toString() ?? 'Die PIN ist ungültig.');
+    } catch (_) {
+      _showMessage('Die PIN konnte nicht gespeichert werden.');
+    }
+  }
+
+  Future<void> _chooseModel() async {
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Lokales Modell auswählen'),
+        content: const Text(
+          'Wähle eine GGUF-Datei, die du verwenden darfst. Sie wird in den '
+          'privaten App-Ordner kopiert, dort aber nicht als Tagebuchinhalt '
+          'verschlüsselt. Die Inferenz läuft lokal und lädt nichts aus dem Netz.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Datei wählen'),
+          ),
+        ],
+      ),
+    );
+    if (approved != true) return;
+
+    try {
+      final files = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['gguf'],
+      );
+      if (files.isEmpty) return;
+      final selected = files.single;
+      final size = await selected.length();
+      if (size != null && size > 4 * 1024 * 1024 * 1024) {
+        _showMessage('Modelle über 4 GB werden nicht importiert.');
+        return;
+      }
+
+      setState(() => _copyingModel = true);
+      final support = await getApplicationSupportDirectory();
+      final modelDirectory = Directory(
+        p.join(support.path, 'filterlos.ich', 'models'),
+      );
+      await modelDirectory.create(recursive: true);
+      final safeName = p
+          .basename(selected.name)
+          .replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+      final target = File(p.join(modelDirectory.path, safeName));
+      final sink = target.openWrite();
+      try {
+        await for (final chunk in selected.readAsByteStream()) {
+          sink.add(chunk);
+        }
+        await sink.flush();
+      } finally {
+        await sink.close();
+      }
+
+      final next = _draft.copyWith(
+        localModelPath: target.path,
+        userMemorySummary: _memoryController.text.trim(),
+      );
+      await widget.controller.updateSettings(next);
+      if (!mounted) return;
+      setState(() => _draft = next);
+      _showMessage(
+        'Modell lokal importiert. Beim ersten Aufruf wird es geladen.',
+      );
+    } catch (_) {
+      _showMessage('Das GGUF-Modell konnte nicht importiert werden.');
+    } finally {
+      if (mounted) setState(() => _copyingModel = false);
+    }
+  }
+
+  Future<void> _removeModel() async {
+    final modelPath = _draft.localModelPath;
+    if (modelPath.isEmpty) return;
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Modell entfernen?'),
+        content: const Text('Die lokale GGUF-Datei wird gelöscht.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Entfernen'),
+          ),
+        ],
+      ),
+    );
+    if (approved != true) return;
+    try {
+      final file = File(modelPath);
+      if (await file.exists()) await file.delete();
+      final next = _draft.copyWith(localModelPath: '');
+      await widget.controller.updateSettings(next);
+      if (mounted) setState(() => _draft = next);
+    } catch (_) {
+      _showMessage('Das Modell konnte nicht entfernt werden.');
+    }
+  }
+
+  Future<void> _refreshMemory() async {
+    setState(() => _updatingMemory = true);
+    try {
+      final current = _draft.copyWith(
+        userMemorySummary: _memoryController.text.trim(),
+      );
+      await widget.controller.updateSettings(current);
+      await widget.controller.refreshLocalMemory();
+      if (!mounted) return;
+      _draft = widget.controller.settings;
+      _memoryController.text = _draft.userMemorySummary;
+      _showMessage('Lokales Gedächtnis aktualisiert.');
+    } catch (error) {
+      _showMessage(error.toString().replaceFirst('Bad state: ', ''));
+    } finally {
+      if (mounted) setState(() => _updatingMemory = false);
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = _draft;
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Einstellungen'),
+        actions: [
+          TextButton(onPressed: _saveSettings, child: const Text('Speichern')),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Text('Darstellung', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: settings.fontFamily,
+            decoration: const InputDecoration(
+              labelText: 'Schriftart',
+              border: OutlineInputBorder(),
+            ),
+            items: FilterlosSettings.availableFonts
+                .map((font) => DropdownMenuItem(value: font, child: Text(font)))
+                .toList(),
+            onChanged: (value) {
+              if (value != null) {
+                setState(() => _draft = settings.copyWith(fontFamily: value));
+              }
+            },
+          ),
+          const SizedBox(height: 16),
+          Text('Schriftgröße: ${(settings.textScaleFactor * 100).round()} %'),
+          Slider(
+            value: settings.textScaleFactor,
+            min: 0.5,
+            max: 1.6,
+            divisions: 22,
+            label: '${(settings.textScaleFactor * 100).round()} %',
+            onChanged: (value) => setState(
+              () => _draft = settings.copyWith(textScaleFactor: value),
+            ),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Helles Design'),
+            value: settings.useLightTheme,
+            onChanged: (value) => setState(
+              () => _draft = settings.copyWith(useLightTheme: value),
+            ),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Stealth-Modus'),
+            subtitle: const Text(
+              'Schwarzer Hintergrund und reduzierte Helligkeit.',
+            ),
+            value: settings.stealthMode,
+            onChanged: (value) =>
+                setState(() => _draft = settings.copyWith(stealthMode: value)),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Emoji-Tasten'),
+            subtitle: const Text(
+              'Kategorien als Emoji statt Farbfelder hervorheben.',
+            ),
+            value: settings.emojiButtons,
+            onChanged: (value) =>
+                setState(() => _draft = settings.copyWith(emojiButtons: value)),
+          ),
+          const SizedBox(height: 8),
+          _ColorDropdown(
+            label: 'Akzentfarbe',
+            value: settings.accentColorValue,
+            onChanged: (value) => setState(
+              () => _draft = settings.copyWith(accentColorValue: value),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _ColorDropdown(
+            label: 'Highlight-Farbe',
+            value: settings.highlightColorValue,
+            onChanged: (value) => setState(
+              () => _draft = settings.copyWith(highlightColorValue: value),
+            ),
+          ),
+          const Divider(height: 36),
+          Text('Lokale KI', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          if (settings.localModelPath.isEmpty)
+            const Text('Kein lokales GGUF-Modell ausgewählt.')
+          else
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.memory_outlined),
+              title: Text(p.basename(settings.localModelPath)),
+              subtitle: const Text('Lokal gespeichert · llama.cpp'),
+              trailing: IconButton(
+                tooltip: 'Modell entfernen',
+                onPressed: _removeModel,
+                icon: const Icon(Icons.delete_outline),
+              ),
+            ),
+          OutlinedButton.icon(
+            onPressed: _copyingModel ? null : _chooseModel,
+            icon: _copyingModel
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.folder_open_outlined),
+            label: Text(
+              _copyingModel ? 'Kopiere Modell…' : 'GGUF-Modell importieren',
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _memoryController,
+            minLines: 2,
+            maxLines: 5,
+            decoration: const InputDecoration(
+              labelText: 'Was fi über deine Vorlieben wissen soll',
+              hintText: 'Nur lokal gespeichert. Du kannst den Text ansehen, ändern oder löschen.',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 8),
+          FilledButton.tonalIcon(
+            onPressed: settings.localModelPath.isEmpty || _updatingMemory
+                ? null
+                : _refreshMemory,
+            icon: _updatingMemory
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.auto_awesome_outlined),
+            label: Text(
+              _updatingMemory
+                  ? 'Aktualisiere lokal…'
+                  : 'Memory aus letzten Einträgen aktualisieren',
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Das Modell wird nicht mitgeliefert oder automatisch heruntergeladen. '
+            'Prüfe vor dem Import die Modelllizenz und den Speicherbedarf.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const Divider(height: 32),
+          Text(
+            'Zugriffsschutz',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.pin_outlined),
+            title: Text(
+              widget.controller.hasTimelinePin
+                  ? 'Timeline-PIN ändern'
+                  : 'Timeline-PIN einrichten',
+            ),
+            subtitle: const Text(
+              'Mindestens sechs Ziffern. Die PIN wird nicht gespeichert.',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _managePin,
+          ),
+          if (Platform.isAndroid)
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Biometrie für Timeline anbieten'),
+              subtitle: const Text('PIN bleibt als Fallback verfügbar.'),
+              value: settings.biometricTimeline,
+              onChanged: (value) => setState(
+                () => _draft = settings.copyWith(biometricTimeline: value),
+              ),
+            )
+          else
+            const ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.fingerprint),
+              title: Text(
+                'Biometrie ist auf dieser Plattform nicht verfügbar.',
+              ),
+              subtitle: Text('Die Timeline wird mit der App-PIN geschützt.'),
+            ),
+          const Card(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Einträge werden lokal mit AES-256-GCM verschlüsselt. '
+                'Der Datenschlüssel liegt im Geräte-Schlüsselbund. Es gibt keinen Cloud-Sync.',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _memoryController.dispose();
+    super.dispose();
+  }
+}
+
+class _ColorDropdown extends StatelessWidget {
+  const _ColorDropdown({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = FilterlosSettings.colors.entries.toList();
+    return DropdownButtonFormField<int>(
+      initialValue: value,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+      ),
+      items: colors
+          .map(
+            (entry) => DropdownMenuItem(
+              value: entry.key,
+              child: Row(
+                children: [
+                  Container(
+                    width: 22,
+                    height: 22,
+                    decoration: BoxDecoration(
+                      color: Color(entry.key),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(entry.value),
+                ],
+              ),
+            ),
+          )
+          .toList(),
+      onChanged: (value) {
+        if (value != null) onChanged(value);
+      },
+    );
+  }
+}
+
+class _PinChange {
+  const _PinChange({required this.newPin, this.currentPin = ''});
+
+  final String currentPin;
+  final String newPin;
+}
+
+class _PinDialog extends StatefulWidget {
+  const _PinDialog({required this.hasPin});
+
+  final bool hasPin;
+
+  @override
+  State<_PinDialog> createState() => _PinDialogState();
+}
+
+class _PinDialogState extends State<_PinDialog> {
+  final _current = TextEditingController();
+  final _pin = TextEditingController();
+  final _confirm = TextEditingController();
+  String? _error;
+
+  void _submit() {
+    if (_pin.text.length < 6 || !RegExp(r'^\d+$').hasMatch(_pin.text)) {
+      setState(() => _error = 'Verwende mindestens sechs Ziffern.');
+      return;
+    }
+    if (_pin.text != _confirm.text) {
+      setState(() => _error = 'Die PINs stimmen nicht überein.');
+      return;
+    }
+    Navigator.of(context)
+        .pop(_PinChange(currentPin: _current.text, newPin: _pin.text));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.hasPin ? 'PIN ändern' : 'Timeline-PIN einrichten'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (widget.hasPin) ...[
+              TextField(
+                controller: _current,
+                obscureText: true,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Aktuelle PIN'),
+              ),
+              const SizedBox(height: 12),
+            ],
+            TextField(
+              controller: _pin,
+              obscureText: true,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Neue PIN'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _confirm,
+              obscureText: true,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'PIN wiederholen'),
+              onSubmitted: (_) => _submit(),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Abbrechen'),
+        ),
+        FilledButton(onPressed: _submit, child: const Text('Speichern')),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    _current.dispose();
+    _pin.dispose();
+    _confirm.dispose();
+    super.dispose();
+  }
+}
