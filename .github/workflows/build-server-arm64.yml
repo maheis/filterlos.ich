@@ -1,0 +1,68 @@
+name: CI - Build server - arm64
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  server:
+    name: Build server arm64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache: true
+
+      - name: Verify Go toolchain
+        run: |
+          which go
+          go version
+
+      - name: Build server release
+        working-directory: server
+        env:
+          CGO_ENABLED: "0"
+          GOOS: linux
+          GOARCH: arm64
+        run: |
+          go env -w GO111MODULE=on
+          go version
+          go build -v -o filterlosich-server
+
+      - name: Package server binary
+        run: |
+          mkdir -p release_dist
+          mkdir -p release_dist/filterlosich-server
+          echo "Listing server build directories for diagnostics"
+          ls -la server || true
+          cp LICENSE release_dist/filterlosich-server/LICENSE || true
+          cp THIRD_PARTY_LICENSES.md release_dist/filterlosich-server/THIRD_PARTY_LICENSES.md || true
+          cp server/README.md release_dist/filterlosich-server/README.md || true
+          cp server/filterlosich-server release_dist/filterlosich-server/filterlosich-server || true
+          cp server/deploy/install.sh release_dist/filterlosich-server/install.sh || true
+          cp server/deploy/uninstall.sh release_dist/filterlosich-server/uninstall.sh || true
+          cp server/etc/config.json.example release_dist/filterlosich-server/config.json.example || true
+          cp server/systemd/filterlosich-server.service release_dist/filterlosich-server/filterlosich-server.service || true
+          chmod +x release_dist/filterlosich-server/install.sh || true
+          chmod +x release_dist/filterlosich-server/uninstall.sh || true
+          cd release_dist && zip -r filterlosich-server-arm64.zip filterlosich-server
+
+      - name: Upload server artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: filterlosich-server-arm64
+          path: release_dist/filterlosich-server-arm64.zip
+
+      - name: Upload server artifact to Release
+        if: ${{ github.event_name == 'release' }}
+        run: gh release upload "${{ github.event.release.tag_name }}" release_dist/filterlosich-server-arm64.zip --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
