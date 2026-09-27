@@ -2,8 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:filterlos_ich/app.dart';
 import 'package:filterlos_ich/app_controller.dart';
+import 'package:filterlos_ich/category_icon.dart';
 import 'package:filterlos_ich/models.dart';
 import 'package:filterlos_ich/services/encrypted_journal_store.dart';
 
@@ -99,19 +101,28 @@ void main() {
 
     expect(find.text('filterlos.ich'), findsOneWidget);
     expect(find.text('Was ist gerade in dir?'), findsOneWidget);
-    for (final (symbol, color) in [
-      ('♨︎', const Color(0xFFE57373)),
-      ('☺︎', const Color(0xFFAED581)),
-      ('☂︎', const Color(0xFF64B5F6)),
-      ('☁︎', Colors.white),
-      ('✦', const Color(0xFFFFF176)),
-      ('⚡︎', const Color(0xFF9575CD)),
+    for (final (category, asset, color) in [
+      (EmotionCategory.all[0], 'angry.svg', const Color(0xFFE57373)),
+      (EmotionCategory.all[1], 'grin-beam.svg', const Color(0xFFAED581)),
+      (EmotionCategory.all[2], 'sad-tear.svg', const Color(0xFF64B5F6)),
+      (EmotionCategory.all[3], 'surprise.svg', Colors.white),
+      (EmotionCategory.all[4], 'lightbulb-on.svg', const Color(0xFFFFF176)),
+      (EmotionCategory.all[5], 'dizzy.svg', const Color(0xFF9575CD)),
     ]) {
-      final symbolFinder = find.text(symbol);
-      expect(symbolFinder, findsOneWidget);
-      expect(tester.widget<Text>(symbolFinder).style?.color, color);
+      final iconFinder = find.byWidgetPredicate(
+        (widget) => widget is CategoryIcon && widget.category == category,
+      );
+      expect(iconFinder, findsOneWidget);
+      final picture = tester.widget<SvgPicture>(
+        find.descendant(of: iconFinder, matching: find.byType(SvgPicture)),
+      );
       expect(
-        find.ancestor(of: symbolFinder, matching: find.byType(Center)),
+        (picture.bytesLoader as SvgAssetLoader).assetName,
+        'assets/icons/$asset',
+      );
+      expect(picture.colorFilter, ColorFilter.mode(color, BlendMode.srcIn));
+      expect(
+        find.ancestor(of: iconFinder, matching: find.byType(Center)),
         findsWidgets,
       );
     }
@@ -122,7 +133,40 @@ void main() {
         findsOneWidget,
       );
     }
+    final category = EmotionCategory.all.first;
+    await tester.tap(
+      find.bySemanticsLabel('${category.name}: ${category.description}'),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text(category.name), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is CategoryIcon && widget.category == category,
+      ),
+      findsOneWidget,
+    );
     semantics.dispose();
+  });
+
+  testWidgets('white thought icon remains visible in light theme', (
+    tester,
+  ) async {
+    final controller = AppController(_MemoryJournalStore());
+    await controller.load();
+    await controller.updateSettings(
+      controller.settings.copyWith(useLightTheme: true, emojiButtons: false),
+    );
+
+    await tester.pumpWidget(FilterlosApp(controller: controller));
+
+    final iconFinder = find.byWidgetPredicate(
+      (widget) => widget is CategoryIcon && widget.category.id == 'thought',
+    );
+    final cardFinder = find.ancestor(
+      of: iconFinder,
+      matching: find.byType(Card),
+    );
+    expect(tester.widget<Card>(cardFinder).color, const Color(0xFF414650));
   });
 }
 

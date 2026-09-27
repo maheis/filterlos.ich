@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_controller.dart';
+import '../category_icon.dart';
 import '../models.dart';
 import 'capture_page.dart';
 import 'settings_page.dart';
@@ -138,15 +139,6 @@ class _EmotionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = Color(category.colorValue);
     final scheme = Theme.of(context).colorScheme;
-    final (symbol, symbolColor) = switch (category.id) {
-      'vent' => ('♨', color),
-      'joy' => ('☺︎', color),
-      'sadness' => ('☂︎', color),
-      'thought' => ('☁︎', Colors.white),
-      'spark' => ('✦', const Color(0xFFFFF176)),
-      'chaos' => ('⚡︎', color),
-      _ => (category.emoji, color),
-    };
 
     return Semantics(
       button: true,
@@ -154,21 +146,15 @@ class _EmotionTile extends StatelessWidget {
       child: Card(
         color: stealth
             ? const Color(0xFF080808)
+            : category.id == 'thought' && scheme.brightness == Brightness.light
+            ? const Color(0xFF414650)
             : emojiStyle
             ? scheme.surfaceContainerLow
             : color.withAlpha(38),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          child: Center(
-            child: ExcludeSemantics(
-              child: Text(
-                symbol,
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 56, color: symbolColor),
-              ),
-            ),
-          ),
+          child: Center(child: CategoryIcon(category: category, size: 56)),
         ),
       ),
     );

@@ -10,6 +10,7 @@ import 'package:record/record.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 import '../app_controller.dart';
+import '../category_icon.dart';
 import '../models.dart';
 
 class CapturePage extends StatefulWidget {
@@ -252,7 +253,14 @@ class _CapturePageState extends State<CapturePage> {
     final category = widget.category;
     return Scaffold(
       appBar: AppBar(
-        title: Text('${category.emoji}  ${category.name}'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CategoryIcon(category: category, size: 28),
+            const SizedBox(width: 10),
+            Flexible(child: Text(category.name)),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: _isSaving ? null : _saveEntry,

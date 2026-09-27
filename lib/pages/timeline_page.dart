@@ -5,6 +5,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 
 import '../app_controller.dart';
+import '../category_icon.dart';
 import '../models.dart';
 import 'local_assistant_page.dart';
 
@@ -233,7 +234,14 @@ class _TimelinePageState extends State<TimelinePage>
                     (category) => Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: ChoiceChip(
-                        label: Text('${category.emoji} ${category.name}'),
+                        label: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CategoryIcon(category: category, size: 18),
+                            const SizedBox(width: 6),
+                            Text(category.name),
+                          ],
+                        ),
                         selected: _categoryId == category.id,
                         onSelected: (_) =>
                             setState(() => _categoryId = category.id),
@@ -402,7 +410,7 @@ class _EntryCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Text(category.emoji, style: const TextStyle(fontSize: 26)),
+                CategoryIcon(category: category, size: 26),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
