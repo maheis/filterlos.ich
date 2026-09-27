@@ -1,4 +1,4 @@
-package de.heister.filterlos_ich
+package be.heister.filterlosich
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 
