@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:filterlos_ich/app.dart';
 import 'package:filterlos_ich/app_controller.dart';
@@ -90,6 +91,7 @@ void main() {
   testWidgets('app opens directly on the six emotion capture grid', (
     tester,
   ) async {
+    final semantics = tester.ensureSemantics();
     final controller = AppController(_MemoryJournalStore());
     await controller.load();
 
@@ -97,9 +99,30 @@ void main() {
 
     expect(find.text('filterlos.ich'), findsOneWidget);
     expect(find.text('Was ist gerade in dir?'), findsOneWidget);
-    for (final category in EmotionCategory.all) {
-      expect(find.text(category.name), findsOneWidget);
+    for (final (symbol, color) in [
+      ('♨︎', const Color(0xFFE57373)),
+      ('☺︎', const Color(0xFFAED581)),
+      ('☂︎', const Color(0xFF64B5F6)),
+      ('☁︎', Colors.white),
+      ('✦', const Color(0xFFFFF176)),
+      ('⚡︎', const Color(0xFF9575CD)),
+    ]) {
+      final symbolFinder = find.text(symbol);
+      expect(symbolFinder, findsOneWidget);
+      expect(tester.widget<Text>(symbolFinder).style?.color, color);
+      expect(
+        find.ancestor(of: symbolFinder, matching: find.byType(Center)),
+        findsWidgets,
+      );
     }
+    for (final category in EmotionCategory.all) {
+      expect(find.text(category.name), findsNothing);
+      expect(
+        find.bySemanticsLabel('${category.name}: ${category.description}'),
+        findsOneWidget,
+      );
+    }
+    semantics.dispose();
   });
 }
 

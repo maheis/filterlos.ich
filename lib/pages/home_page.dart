@@ -138,6 +138,15 @@ class _EmotionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = Color(category.colorValue);
     final scheme = Theme.of(context).colorScheme;
+    final (symbol, symbolColor) = switch (category.id) {
+      'vent' => ('♨', color),
+      'joy' => ('☺︎', color),
+      'sadness' => ('☂︎', color),
+      'thought' => ('☁︎', Colors.white),
+      'spark' => ('✦', const Color(0xFFFFF176)),
+      'chaos' => ('⚡︎', color),
+      _ => (category.emoji, color),
+    };
 
     return Semantics(
       button: true,
@@ -151,27 +160,13 @@ class _EmotionTile extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(category.emoji, style: const TextStyle(fontSize: 34)),
-                const Spacer(),
-                Text(
-                  category.name,
-                  style: Theme.of(context).textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  category.description,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall
-                      ?.copyWith(color: scheme.onSurfaceVariant),
-                ),
-              ],
+          child: Center(
+            child: ExcludeSemantics(
+              child: Text(
+                symbol,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 56, color: symbolColor),
+              ),
             ),
           ),
         ),
