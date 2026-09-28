@@ -18,9 +18,12 @@ class CategoryIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (asset, categoryColor) = switch (category.id) {
-      'vent' => ('angry.svg', Color(category.colorValue)),
-      'joy' => ('grin-beam.svg', Color(category.colorValue)),
-      'sadness' => ('sad-tear.svg', Color(category.colorValue)),
+      'vent' => ('white_transparent_vent.svg', Color(category.colorValue)),
+      'joy' => ('white_transparent_joy.svg', Color(category.colorValue)),
+      'sadness' => (
+        'white_transparent_sadness.svg',
+        Color(category.colorValue),
+      ),
       'thought' => ('surprise.svg', Colors.white),
       'spark' => ('lightbulb-on.svg', const Color(0xFFFFF176)),
       'chaos' => ('dizzy.svg', Color(category.colorValue)),
