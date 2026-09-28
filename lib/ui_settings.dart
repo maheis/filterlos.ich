@@ -127,12 +127,33 @@ ThemeData buildFilterlosTheme(
   final brightness = settings.useLightTheme && !stealth
       ? Brightness.light
       : Brightness.dark;
-  final accent = Color(settings.accentColorValue);
-  final highlight = Color(settings.highlightColorValue);
+  final accent = stealth
+      ? const Color(0xFF8A8A8A)
+      : Color(settings.accentColorValue);
+  final highlight = stealth
+      ? const Color(0xFFBDBDBD)
+      : Color(settings.highlightColorValue);
   final base = ColorScheme.fromSeed(seedColor: accent, brightness: brightness);
   final scheme = base.copyWith(
     primary: accent,
+    onPrimary: stealth ? Colors.black : base.onPrimary,
+    primaryContainer: stealth ? const Color(0xFF303030) : base.primaryContainer,
+    onPrimaryContainer: stealth
+        ? const Color(0xFFE0E0E0)
+        : base.onPrimaryContainer,
     secondary: highlight,
+    onSecondary: stealth ? Colors.black : base.onSecondary,
+    secondaryContainer: stealth
+        ? const Color(0xFF303030)
+        : base.secondaryContainer,
+    onSecondaryContainer: stealth
+        ? const Color(0xFFE0E0E0)
+        : base.onSecondaryContainer,
+    tertiary: highlight,
+    onTertiary: stealth ? Colors.black : base.onTertiary,
+    error: stealth ? const Color(0xFFBDBDBD) : base.error,
+    onError: stealth ? Colors.black : base.onError,
+    outline: stealth ? const Color(0xFF777777) : base.outline,
     surface: stealth ? Colors.black : base.surface,
     onSurface: stealth ? const Color(0xFF777777) : base.onSurface,
   );

@@ -351,6 +351,7 @@ class _SettingsPageState extends State<SettingsPage> {
           _ColorDropdown(
             label: 'Akzentfarbe',
             value: settings.accentColorValue,
+            stealth: settings.stealthMode,
             onChanged: (value) => setState(
               () => _draft = settings.copyWith(accentColorValue: value),
             ),
@@ -359,6 +360,7 @@ class _SettingsPageState extends State<SettingsPage> {
           _ColorDropdown(
             label: 'Highlight-Farbe',
             value: settings.highlightColorValue,
+            stealth: settings.stealthMode,
             onChanged: (value) => setState(
               () => _draft = settings.copyWith(highlightColorValue: value),
             ),
@@ -547,11 +549,13 @@ class _ColorDropdown extends StatelessWidget {
   const _ColorDropdown({
     required this.label,
     required this.value,
+    required this.stealth,
     required this.onChanged,
   });
 
   final String label;
   final int value;
+  final bool stealth;
   final ValueChanged<int> onChanged;
 
   @override
@@ -573,7 +577,9 @@ class _ColorDropdown extends StatelessWidget {
                     width: 22,
                     height: 22,
                     decoration: BoxDecoration(
-                      color: Color(entry.key),
+                      color: stealth
+                          ? const Color(0xFF777777)
+                          : Color(entry.key),
                       shape: BoxShape.circle,
                     ),
                   ),

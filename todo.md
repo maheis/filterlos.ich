@@ -18,8 +18,8 @@
 - [x] iconfarbe im stealth neutral
 - [x] buttons schicker benennen (verschlüsselt speicher z.b.)
 - [x] direkt biometrie beim öfffnen vom tagebuch anbieten
-- [ ] stealthmodus: alle farben weg nehmen (auch highlight- und accent-color)
-- [ ] "verschlüsselte timeeline öffnen" -> timeline
-- [ ] "verschlüsselt speichern" -> speichern
-- [ ] "offline diktieren" -> diktieren
-- [ ] "Audio aufnhemen" -> sprachnotizen
+- [x] stealthmodus: alle farben weg nehmen (auch highlight- und accent-color)
+- [x] "verschlüsselte timeeline öffnen" -> timeline
+- [x] "verschlüsselt speichern" -> speichern
+- [x] "offline diktieren" -> diktieren
+- [x] "Audio aufnhemen" -> sprachnotizen

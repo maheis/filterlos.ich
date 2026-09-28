@@ -99,7 +99,7 @@ class FilterlosHomePage extends StatelessWidget {
                     ),
                   ),
                   icon: const Icon(Icons.lock_outline),
-                  label: const Text('Verschlüsselte Timeline öffnen'),
+                  label: const Text('Timeline'),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(54),
                   ),

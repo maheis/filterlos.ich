@@ -308,7 +308,7 @@ class _CapturePageState extends State<CapturePage> {
                       onPressed: _toggleRecording,
                       icon: Icon(_isRecording ? Icons.stop : Icons.mic_none),
                       label: Text(
-                        _isRecording ? 'Aufnahme stoppen' : 'Audio aufnehmen',
+                        _isRecording ? 'Aufnahme stoppen' : 'Sprachnotizen',
                       ),
                     ),
                     if (_canUseSpeech)
@@ -318,7 +318,7 @@ class _CapturePageState extends State<CapturePage> {
                           _isListening ? Icons.stop : Icons.graphic_eq,
                         ),
                         label: Text(
-                          _isListening ? 'Diktat stoppen' : 'Offline diktieren',
+                          _isListening ? 'Diktat stoppen' : 'Diktieren',
                         ),
                       ),
                   ],
@@ -373,11 +373,7 @@ class _CapturePageState extends State<CapturePage> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.lock_outline),
-                  label: Text(
-                    _isSaving
-                        ? 'Speichere verschlüsselt…'
-                        : 'Verschlüsselt speichern',
-                  ),
+                  label: Text(_isSaving ? 'Speichere…' : 'Speichern'),
                   style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(54),
                   ),

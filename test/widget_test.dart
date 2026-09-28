@@ -133,6 +133,26 @@ void main() {
     expect(lightTheme.snackBarTheme.contentTextStyle?.color, Colors.white);
   });
 
+  test('stealth theme ignores configured accent and highlight colors', () {
+    final settings = FilterlosSettings.defaults.copyWith(
+      accentColorValue: 0xFFE57373,
+      highlightColorValue: 0xFFFFB74D,
+    );
+    final scheme = buildFilterlosTheme(settings, stealth: true).colorScheme;
+
+    for (final color in [
+      scheme.primary,
+      scheme.secondary,
+      scheme.tertiary,
+      scheme.error,
+    ]) {
+      expect(color.r, color.g);
+      expect(color.g, color.b);
+    }
+    expect(scheme.primary, isNot(Color(settings.accentColorValue)));
+    expect(scheme.secondary, isNot(Color(settings.highlightColorValue)));
+  });
+
   testWidgets('category SVGs become neutral in stealth mode', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -156,6 +176,10 @@ void main() {
   testWidgets('app opens directly on the six emotion capture grid', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(800, 1100);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     final semantics = tester.ensureSemantics();
     final controller = AppController(_MemoryJournalStore());
     await controller.load();
@@ -164,6 +188,7 @@ void main() {
 
     expect(find.text('filterlos.ich'), findsOneWidget);
     expect(find.text('Was ist gerade in dir?'), findsOneWidget);
+    expect(find.text('Timeline'), findsOneWidget);
     for (final (category, asset, color) in [
       (EmotionCategory.all[0], 'angry.svg', const Color(0xFFE57373)),
       (EmotionCategory.all[1], 'grin-beam.svg', const Color(0xFFAED581)),
@@ -202,6 +227,8 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text(category.name), findsOneWidget);
+    expect(find.text('Speichern'), findsOneWidget);
+    expect(find.text('Sprachnotizen'), findsOneWidget);
     expect(
       find.byWidgetPredicate(
         (widget) => widget is CategoryIcon && widget.category == category,
