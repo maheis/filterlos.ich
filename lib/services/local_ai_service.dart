@@ -91,6 +91,9 @@ class LocalAiService {
     if (model.id == 'qwen3-4b-q4km') {
       return 'Die Qwen3-4B-Datei ist vollständig und geprüft, konnte aber von llama.cpp auf diesem Gerät nicht geladen werden. Häufig reichen Arbeitsspeicher oder CPU-Backend nicht aus. Entferne das Modell in den Einstellungen und versuche Qwen3 0.6B.';
     }
+    if (model.id == 'qwen3-0.6b-q8') {
+      return 'Qwen3 0.6B ist vollständig und SHA-256-geprüft, wird aber vom nativen llama.cpp-Lader unter Android abgelehnt. Ein erneuter Download hilft daher wahrscheinlich nicht. Die verwendete Android-Laufzeit liefert leider keinen genaueren nativen Fehler; dafür ist ein Update des Android-Backends nötig.';
+    }
     return 'Die Modelldatei ist vollständig und geprüft, konnte aber von llama.cpp auf diesem Gerät nicht geladen werden. Versuche Qwen3 0.6B oder prüfe die Gerätekompatibilität.';
   }
 }
