@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../app_controller.dart';
+import '../services/local_model_download_service.dart';
 import '../ui_settings.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -21,8 +22,11 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   late FilterlosSettings _draft = widget.controller.settings;
   final _memoryController = TextEditingController();
+  final _modelDownloadService = LocalModelDownloadService();
   bool _copyingModel = false;
   bool _updatingMemory = false;
+  String? _downloadingModelId;
+  int _downloadedModelBytes = 0;
 
   @override
   void initState() {
@@ -140,6 +144,80 @@ class _SettingsPageState extends State<SettingsPage> {
     } finally {
       if (mounted) setState(() => _copyingModel = false);
     }
+  }
+
+  Future<void> _downloadModel(LocalModelCatalogEntry model) async {
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Lokales Modell herunterladen?'),
+        content: Text(
+          '${model.name}\n'
+          'Download: ${formatModelSize(model.sizeBytes)}\n'
+          'Lizenz: Apache 2.0\n\n'
+          'Die Datei wird von Hugging Face geladen und im privaten App-Ordner '
+          'gespeichert. Dafür wird zusätzlicher Gerätespeicher benötigt. '
+          'Tagebucheinträge werden nicht übertragen. Das Modell selbst ist '
+          'nicht verschlüsselt. Lizenzquelle:\n${model.licenseUrl}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            icon: const Icon(Icons.download_outlined),
+            label: const Text('Herunterladen'),
+          ),
+        ],
+      ),
+    );
+    if (approved != true || !mounted) return;
+
+    setState(() {
+      _downloadingModelId = model.id;
+      _downloadedModelBytes = 0;
+    });
+    try {
+      final support = await getApplicationSupportDirectory();
+      final directory = Directory(
+        p.join(support.path, 'filterlos.ich', 'models'),
+      );
+      final file = await _modelDownloadService.download(
+        model,
+        directory: directory,
+        onProgress: (receivedBytes) {
+          if (mounted) setState(() => _downloadedModelBytes = receivedBytes);
+        },
+      );
+      if (!mounted) return;
+      final next = _draft.copyWith(
+        localModelPath: file.path,
+        userMemorySummary: _memoryController.text.trim(),
+      );
+      await widget.controller.updateSettings(next);
+      if (!mounted) return;
+      setState(() => _draft = next);
+      _showMessage('Modell geprüft und lokal aktiviert.');
+    } on LocalModelDownloadCancelled {
+      if (mounted) _showMessage('Modelldownload abgebrochen.');
+    } on LocalModelDownloadException catch (error) {
+      if (mounted) _showMessage(error.message);
+    } catch (_) {
+      if (mounted) _showMessage('Das Modell konnte nicht geladen werden.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _downloadingModelId = null;
+          _downloadedModelBytes = 0;
+        });
+      }
+    }
+  }
+
+  void _cancelModelDownload() {
+    _modelDownloadService.cancel();
   }
 
   Future<void> _removeModel() async {
@@ -288,6 +366,11 @@ class _SettingsPageState extends State<SettingsPage> {
           const Divider(height: 36),
           Text('Lokale KI', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
+          const Text(
+            'Modelle werden nur auf ausdrücklichen Wunsch geladen. Die '
+            'Tagebuchdaten verlassen das Gerät nicht.',
+          ),
+          const SizedBox(height: 8),
           if (settings.localModelPath.isEmpty)
             const Text('Kein lokales GGUF-Modell ausgewählt.')
           else
@@ -302,8 +385,12 @@ class _SettingsPageState extends State<SettingsPage> {
                 icon: const Icon(Icons.delete_outline),
               ),
             ),
+          for (final model in LocalModelCatalogEntry.officialModels)
+            _modelDownloadOption(model, settings),
           OutlinedButton.icon(
-            onPressed: _copyingModel ? null : _chooseModel,
+            onPressed: _copyingModel || _downloadingModelId != null
+                ? null
+                : _chooseModel,
             icon: _copyingModel
                 ? const SizedBox.square(
                     dimension: 18,
@@ -344,8 +431,9 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Das Modell wird nicht mitgeliefert oder automatisch heruntergeladen. '
-            'Prüfe vor dem Import die Modelllizenz und den Speicherbedarf.',
+            'Quelle: Qwen-Team auf Hugging Face. Die angebotenen Gewichte '
+            'stehen unter Apache 2.0. Modelle werden nicht mit der App '
+            'gebündelt; ein Download benötigt eine Internetverbindung.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const Divider(height: 32),
@@ -403,8 +491,55 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   void dispose() {
+    _modelDownloadService.cancel();
     _memoryController.dispose();
     super.dispose();
+  }
+
+  Widget _modelDownloadOption(
+    LocalModelCatalogEntry model,
+    FilterlosSettings settings,
+  ) {
+    final isDownloading = _downloadingModelId == model.id;
+    final isActive = p.basename(settings.localModelPath) == model.filename;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(model.name),
+          subtitle: Text(
+            '${formatModelSize(model.sizeBytes)} · Apache 2.0 · Qwen',
+          ),
+          trailing: isDownloading
+              ? IconButton(
+                  tooltip: 'Download abbrechen',
+                  onPressed: _cancelModelDownload,
+                  icon: const Icon(Icons.close),
+                )
+              : isActive
+              ? const Icon(Icons.check_circle_outline)
+              : IconButton(
+                  tooltip: 'Modell herunterladen und aktivieren',
+                  onPressed: _downloadingModelId != null || _copyingModel
+                      ? null
+                      : () => _downloadModel(model),
+                  icon: const Icon(Icons.download_outlined),
+                ),
+        ),
+        if (isDownloading) ...[
+          LinearProgressIndicator(
+            value: _downloadedModelBytes / model.sizeBytes,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${formatModelSize(_downloadedModelBytes)} / '
+            '${formatModelSize(model.sizeBytes)}',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ],
+    );
   }
 }
 

@@ -11,4 +11,10 @@
   - [x] weiß: gedanken
   - [x] gelb: geistesblitz
   - [x] lila: chaos
-- [ ] llm opensource download anbieten?
+- [x] llm opensource download anbieten?
+- [ ] toast dark
+- [ ] timeline als versionsgraph Datum/tag
+- [ ] audio transskript später
+- [ ] iconfarbe im stealth neutral
+- [ ] buttons schicker benennen (verschlüsselt speicher z.b.)
+- [ ] direkt biometrie beim öfffnen vom tagebuch anbieten
