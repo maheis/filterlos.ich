@@ -12,9 +12,9 @@
   - [x] gelb: geistesblitz
   - [x] lila: chaos
 - [x] llm opensource download anbieten?
-- [ ] toast dark
-- [ ] timeline als versionsgraph Datum/tag
 - [ ] audio transskript später
-- [ ] iconfarbe im stealth neutral
-- [ ] buttons schicker benennen (verschlüsselt speicher z.b.)
-- [ ] direkt biometrie beim öfffnen vom tagebuch anbieten
+- [x] toast dark
+- [x] timeline als versionsgraph Datum/tag
+- [x] iconfarbe im stealth neutral
+- [x] buttons schicker benennen (verschlüsselt speicher z.b.)
+- [x] direkt biometrie beim öfffnen vom tagebuch anbieten

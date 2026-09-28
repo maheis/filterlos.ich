@@ -162,6 +162,15 @@ ThemeData buildFilterlosTheme(
       ),
       floatingLabelStyle: TextStyle(color: highlight),
     ),
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: stealth
+          ? const Color(0xFF101010)
+          : const Color(0xFF242424),
+      contentTextStyle: const TextStyle(color: Colors.white),
+      actionTextColor: highlight,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    ),
     textSelectionTheme: TextSelectionThemeData(
       cursorColor: highlight,
       selectionColor: highlight.withAlpha(80),

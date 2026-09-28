@@ -9,6 +9,7 @@ import 'package:filterlos_ich/category_icon.dart';
 import 'package:filterlos_ich/models.dart';
 import 'package:filterlos_ich/pages/settings_page.dart';
 import 'package:filterlos_ich/services/encrypted_journal_store.dart';
+import 'package:filterlos_ich/ui_settings.dart';
 
 void main() {
   test('journal payload is encrypted and round-trips', () async {
@@ -89,6 +90,67 @@ void main() {
     await controller.deleteEntry(entry.id);
     expect(controller.entries, isEmpty);
     expect((store.state['entries'] as List<dynamic>), isEmpty);
+  });
+
+  test(
+    'timeline entries group by local calendar day in newest-first order',
+    () {
+      JournalEntry entry(String id, DateTime createdAt) => JournalEntry(
+        id: id,
+        categoryId: 'thought',
+        createdAt: createdAt,
+        text: id,
+      );
+      final grouped = groupEntriesByDay([
+        entry('morning', DateTime(2026, 9, 28, 8)),
+        entry('yesterday', DateTime(2026, 9, 27, 23)),
+        entry('evening', DateTime(2026, 9, 28, 20)),
+      ]);
+
+      expect(grouped.keys.toList(), [
+        DateTime(2026, 9, 28),
+        DateTime(2026, 9, 27),
+      ]);
+      expect(grouped[DateTime(2026, 9, 28)]!.map((entry) => entry.id), [
+        'morning',
+        'evening',
+      ]);
+    },
+  );
+
+  test('snackbars use dark surfaces in light and stealth themes', () {
+    final lightTheme = buildFilterlosTheme(
+      FilterlosSettings.defaults.copyWith(useLightTheme: true),
+      stealth: false,
+    );
+    final stealthTheme = buildFilterlosTheme(
+      FilterlosSettings.defaults,
+      stealth: true,
+    );
+
+    expect(lightTheme.snackBarTheme.backgroundColor, const Color(0xFF242424));
+    expect(stealthTheme.snackBarTheme.backgroundColor, const Color(0xFF101010));
+    expect(lightTheme.snackBarTheme.contentTextStyle?.color, Colors.white);
+  });
+
+  testWidgets('category SVGs become neutral in stealth mode', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CategoryIcon(
+            category: EmotionCategory.all.first,
+            size: 32,
+            stealth: true,
+          ),
+        ),
+      ),
+    );
+
+    final picture = tester.widget<SvgPicture>(find.byType(SvgPicture));
+    expect(
+      picture.colorFilter,
+      const ColorFilter.mode(Color(0xFF777777), BlendMode.srcIn),
+    );
   });
 
   testWidgets('app opens directly on the six emotion capture grid', (

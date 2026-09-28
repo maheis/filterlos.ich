@@ -256,17 +256,15 @@ class _CapturePageState extends State<CapturePage> {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CategoryIcon(category: category, size: 28),
+            CategoryIcon(
+              category: category,
+              size: 28,
+              stealth: widget.controller.settings.stealthMode,
+            ),
             const SizedBox(width: 10),
             Flexible(child: Text(category.name)),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: _isSaving ? null : _saveEntry,
-            child: const Text('Sichern'),
-          ),
-        ],
       ),
       body: SafeArea(
         child: Center(
@@ -375,7 +373,11 @@ class _CapturePageState extends State<CapturePage> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.lock_outline),
-                  label: Text(_isSaving ? 'Sichere…' : 'Verschlüsselt sichern'),
+                  label: Text(
+                    _isSaving
+                        ? 'Speichere verschlüsselt…'
+                        : 'Verschlüsselt speichern',
+                  ),
                   style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(54),
                   ),

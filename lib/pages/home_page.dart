@@ -99,7 +99,7 @@ class FilterlosHomePage extends StatelessWidget {
                     ),
                   ),
                   icon: const Icon(Icons.lock_outline),
-                  label: const Text('Timeline öffnen'),
+                  label: const Text('Verschlüsselte Timeline öffnen'),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(54),
                   ),
@@ -154,7 +154,9 @@ class _EmotionTile extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          child: Center(child: CategoryIcon(category: category, size: 56)),
+          child: Center(
+            child: CategoryIcon(category: category, size: 56, stealth: stealth),
+          ),
         ),
       ),
     );

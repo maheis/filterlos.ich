@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../app_controller.dart';
 import '../category_icon.dart';
@@ -34,6 +35,15 @@ class _TimelinePageState extends State<TimelinePage>
     WidgetsBinding.instance.addObserver(this);
     _setupMode = !widget.controller.hasTimelinePin;
     _unlockedHere = widget.controller.timelineUnlocked;
+    if (Platform.isAndroid &&
+        widget.controller.settings.biometricTimeline &&
+        widget.controller.hasTimelinePin) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_unlockedHere) {
+          _unlockBiometrics(automatic: true);
+        }
+      });
+    }
   }
 
   @override
@@ -86,7 +96,7 @@ class _TimelinePageState extends State<TimelinePage>
     }
   }
 
-  Future<void> _unlockBiometrics() async {
+  Future<void> _unlockBiometrics({bool automatic = false}) async {
     setState(() {
       _busy = true;
       _error = null;
@@ -97,7 +107,9 @@ class _TimelinePageState extends State<TimelinePage>
         _busy = false;
         _unlockedHere = unlocked;
         if (!unlocked) {
-          _error = 'Biometrische Entsperrung nicht verfügbar. Nutze deine PIN.';
+          _error = automatic
+              ? null
+              : 'Biometrische Entsperrung nicht verfügbar. Nutze deine PIN.';
         }
       });
     }
@@ -179,6 +191,12 @@ class _TimelinePageState extends State<TimelinePage>
       return _buildLockedView(context);
     }
     final entries = widget.controller.entriesFor(categoryId: _categoryId);
+    final groupedEntries = groupEntriesByDay(entries);
+    final timelineRows = <_TimelineRow>[];
+    for (final group in groupedEntries.entries) {
+      timelineRows.add(_TimelineRow.header(group.key, group.value.length));
+      timelineRows.addAll(group.value.map(_TimelineRow.entry));
+    }
     return Scaffold(
       appBar: AppBar(
         title: const Text('Deine Timeline'),
@@ -237,7 +255,11 @@ class _TimelinePageState extends State<TimelinePage>
                         label: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            CategoryIcon(category: category, size: 18),
+                            CategoryIcon(
+                              category: category,
+                              size: 18,
+                              stealth: widget.controller.settings.stealthMode,
+                            ),
                             const SizedBox(width: 6),
                             Text(category.name),
                           ],
@@ -258,20 +280,29 @@ class _TimelinePageState extends State<TimelinePage>
                     )
                   : ListView.builder(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                      itemCount: entries.length,
-                      itemBuilder: (context, index) => _EntryCard(
-                        entry: entries[index],
-                        onDelete: () => _deleteEntry(entries[index]),
-                        onCompanion:
-                            widget.controller.settings.localModelPath.isEmpty
-                            ? null
-                            : () => _showAiResult(
-                                'fi · ${entries[index].category.name}',
-                                () => widget.controller.companionReply(
-                                  entries[index],
+                      itemCount: timelineRows.length,
+                      itemBuilder: (context, index) {
+                        final row = timelineRows[index];
+                        if (row.day != null) {
+                          return _TimelineDayHeader(
+                            day: row.day!,
+                            entryCount: row.entryCount,
+                          );
+                        }
+                        final entry = row.entry!;
+                        return _EntryCard(
+                          entry: entry,
+                          stealth: widget.controller.settings.stealthMode,
+                          onDelete: () => _deleteEntry(entry),
+                          onCompanion:
+                              widget.controller.settings.localModelPath.isEmpty
+                              ? null
+                              : () => _showAiResult(
+                                  'fi · ${entry.category.name}',
+                                  () => widget.controller.companionReply(entry),
                                 ),
-                              ),
-                      ),
+                        );
+                      },
                     ),
             ),
           ],
@@ -364,7 +395,7 @@ class _TimelinePageState extends State<TimelinePage>
                 if (biometricAvailable) ...[
                   const SizedBox(height: 8),
                   OutlinedButton.icon(
-                    onPressed: _busy ? null : _unlockBiometrics,
+                    onPressed: _busy ? null : () => _unlockBiometrics(),
                     icon: const Icon(Icons.fingerprint),
                     label: const Text('Mit Biometrie entsperren'),
                   ),
@@ -387,14 +418,80 @@ class _TimelinePageState extends State<TimelinePage>
   }
 }
 
+class _TimelineRow {
+  const _TimelineRow.header(this.day, this.entryCount) : entry = null;
+  const _TimelineRow.entry(this.entry) : day = null, entryCount = 0;
+
+  final DateTime? day;
+  final int entryCount;
+  final JournalEntry? entry;
+}
+
+class _TimelineDayHeader extends StatelessWidget {
+  const _TimelineDayHeader({required this.day, required this.entryCount});
+
+  final DateTime day;
+  final int entryCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final today = DateTime.now();
+    final normalizedToday = DateTime(today.year, today.month, today.day);
+    final yesterday = normalizedToday.subtract(const Duration(days: 1));
+    final fullDate = DateFormat('EEEE, d. MMMM yyyy', 'de_DE').format(day);
+    final title = day == normalizedToday
+        ? 'Heute · $fullDate'
+        : day == yesterday
+        ? 'Gestern · $fullDate'
+        : fullDate;
+    final accent = Theme.of(context).colorScheme.secondary;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 18, 4, 12),
+      child: Row(
+        children: [
+          Container(
+            width: 26,
+            height: 26,
+            decoration: BoxDecoration(
+              color: accent.withAlpha(32),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.calendar_today_outlined, size: 14, color: accent),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w700),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '$entryCount ${entryCount == 1 ? 'Eintrag' : 'Einträge'}',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _EntryCard extends StatelessWidget {
   const _EntryCard({
     required this.entry,
+    required this.stealth,
     required this.onDelete,
     this.onCompanion,
   });
 
   final JournalEntry entry;
+  final bool stealth;
   final VoidCallback onDelete;
   final VoidCallback? onCompanion;
 
@@ -410,7 +507,7 @@ class _EntryCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                CategoryIcon(category: category, size: 26),
+                CategoryIcon(category: category, size: 26, stealth: stealth),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(

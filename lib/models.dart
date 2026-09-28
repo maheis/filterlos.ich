@@ -146,3 +146,16 @@ String formatEntryDate(DateTime date) =>
 
 String formatDay(DateTime date) =>
     DateFormat('EEEE, d. MMMM', 'de_DE').format(date);
+
+Map<DateTime, List<JournalEntry>> groupEntriesByDay(
+  Iterable<JournalEntry> entries,
+) {
+  final grouped = <DateTime, List<JournalEntry>>{};
+  for (final entry in entries) {
+    final created = entry.createdAt;
+    final day = DateTime(created.year, created.month, created.day);
+    grouped.putIfAbsent(day, () => []).add(entry);
+  }
+  final days = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
+  return {for (final day in days) day: List.unmodifiable(grouped[day]!)};
+}
