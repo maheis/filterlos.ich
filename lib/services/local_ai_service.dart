@@ -1,6 +1,10 @@
+import 'dart:io';
+
+import 'package:path/path.dart' as p;
 import 'package:llm_llamacpp/llm_llamacpp.dart';
 
 import '../models.dart';
+import 'local_model_download_service.dart';
 
 class LocalAiService {
   String? _modelPath;
@@ -27,8 +31,12 @@ class LocalAiService {
       ),
     );
 
-    await for (final chunk in stream) {
-      response.write(chunk.message?.content ?? '');
+    try {
+      await for (final chunk in stream) {
+        response.write(chunk.message?.content ?? '');
+      }
+    } on ModelLoadException {
+      throw StateError(await _explainModelLoadFailure(modelPath));
     }
     final result = response.toString().trim();
     if (result.isEmpty) {
@@ -58,6 +66,33 @@ class LocalAiService {
   }
 
   void reset() => dispose();
+
+  Future<String> _explainModelLoadFailure(String modelPath) async {
+    final file = File(modelPath);
+    if (!await file.exists()) {
+      return 'Die lokale Modell-Datei wurde nicht gefunden. Wähle sie in den Einstellungen erneut aus.';
+    }
+    final model = LocalModelCatalogEntry.officialModels
+        .where((entry) => entry.filename == p.basename(modelPath))
+        .firstOrNull;
+    if (model == null) {
+      return 'llama.cpp konnte diese GGUF-Datei nicht laden. Prüfe, ob sie vollständig ist, und versuche ein kleineres GGUF-Modell.';
+    }
+    if (await file.length() != model.sizeBytes) {
+      return 'Die Modelldatei ist unvollständig. Entferne sie in den Einstellungen und lade sie erneut herunter.';
+    }
+    final isVerified = await LocalModelDownloadService().matchesExpectedFile(
+      file,
+      model,
+    );
+    if (!isVerified) {
+      return 'Die SHA-256-Prüfung der Modelldatei stimmt nicht. Entferne sie in den Einstellungen und lade sie erneut herunter.';
+    }
+    if (model.id == 'qwen3-4b-q4km') {
+      return 'Die Qwen3-4B-Datei ist vollständig und geprüft, konnte aber von llama.cpp auf diesem Gerät nicht geladen werden. Häufig reichen Arbeitsspeicher oder CPU-Backend nicht aus. Entferne das Modell in den Einstellungen und versuche Qwen3 0.6B.';
+    }
+    return 'Die Modelldatei ist vollständig und geprüft, konnte aber von llama.cpp auf diesem Gerät nicht geladen werden. Versuche Qwen3 0.6B oder prüfe die Gerätekompatibilität.';
+  }
 }
 
 String buildCompanionPrompt(JournalEntry entry, String memory) {

@@ -89,7 +89,7 @@ class LocalModelDownloadService {
     await directory.create(recursive: true);
     final target = File(p.join(directory.path, model.filename));
     final partial = File('${target.path}.part');
-    final existingIsValid = await _matchesExpectedFile(target, model);
+    final existingIsValid = await matchesExpectedFile(target, model);
     if (existingIsValid) return target;
     if (await target.exists()) await target.delete();
 
@@ -166,7 +166,7 @@ class LocalModelDownloadService {
     }
   }
 
-  Future<bool> _matchesExpectedFile(
+  Future<bool> matchesExpectedFile(
     File file,
     LocalModelCatalogEntry model,
   ) async {

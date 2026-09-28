@@ -1,4 +1,4 @@
-import 'dart:async';
+hiimport 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -53,6 +53,7 @@ void main() {
 
     expect(await downloaded.readAsString(), 'abc');
     expect(progress, [0, 3]);
+    expect(await service.matchesExpectedFile(downloaded, testModel()), isTrue);
   });
 
   test('deletes partial output when the checksum is invalid', () async {
