@@ -5,6 +5,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../ai_progress_view.dart';
 import '../app_controller.dart';
 import '../category_icon.dart';
 import '../models.dart';
@@ -149,14 +150,8 @@ class _TimelinePageState extends State<TimelinePage>
     final loadingDialog = showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const AlertDialog(
-        content: Row(
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 18),
-            Expanded(child: Text('Fi denkt lokal nach…')),
-          ],
-        ),
+      builder: (_) => AlertDialog(
+        content: AiProgressView(progress: widget.controller.aiProgress),
       ),
     );
 

@@ -25,6 +25,8 @@ class AppController extends ChangeNotifier {
   bool get hasTimelinePin => _hasTimelinePin;
   bool _hasTimelinePin = false;
 
+  ValueListenable<AiProgress?> get aiProgress => _localAi.progress;
+
   Future<void> load() async {
     final state = await _store.loadState();
     final storedEntries = state['entries'];

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../ai_progress_view.dart';
 import '../app_controller.dart';
 
 class LocalAssistantPage extends StatefulWidget {
@@ -136,7 +137,16 @@ class _LocalAssistantPageState extends State<LocalAssistantPage> {
                       },
                     ),
             ),
-            if (_working) const LinearProgressIndicator(minHeight: 2),
+            if (_working) ...[
+              const LinearProgressIndicator(minHeight: 2),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: AiProgressView(
+                  progress: widget.controller.aiProgress,
+                  showSpinner: false,
+                ),
+              ),
+            ],
             Padding(
               padding: const EdgeInsets.all(12),
               child: Row(

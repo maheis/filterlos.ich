@@ -1,16 +1,29 @@
+import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:llm_llamacpp/llm_llamacpp.dart';
 
 import '../models.dart';
 import 'local_model_download_service.dart';
 
+class AiProgress {
+  const AiProgress(this.status, [this.partialText = '']);
+
+  final String status;
+  final String partialText;
+}
+
+String _stripThinking(String text) =>
+    text.replaceAll(RegExp(r'<think>[\s\S]*?(</think>|$)'), '').trim();
+
 class LocalAiService {
   String? _modelPath;
   LlamaCppChatRepository? _chatRepository;
   LlamaCppRepository? _modelRepository;
   LlamaCppModel? _loadedModel;
+  final ValueNotifier<AiProgress?> progress = ValueNotifier(null);
 
   Future<String> generate({
     required String modelPath,
@@ -18,13 +31,40 @@ class LocalAiService {
     required String userPrompt,
     int maxTokens = 240,
   }) async {
+    final stopwatch = Stopwatch()..start();
+    final response = StringBuffer();
+    var phase = _chatRepository != null && _modelPath == modelPath
+        ? 'Liest die Eingabe'
+        : 'Modell wird geladen';
+    var tokens = 0;
+    var firstTokenAt = Duration.zero;
+    void emit() {
+      final raw = response.toString();
+      final String status;
+      if (tokens == 0) {
+        status = '$phase … ${stopwatch.elapsed.inSeconds} s';
+      } else {
+        final seconds =
+            (stopwatch.elapsed - firstTokenAt).inMilliseconds / 1000;
+        final rate = seconds > 0 ? (tokens / seconds).toStringAsFixed(1) : '–';
+        final thinking = raw.contains('<think>') && !raw.contains('</think>');
+        status =
+            '${thinking ? 'Denkt nach' : 'Schreibt'} · $tokens Tokens · '
+            '$rate Tokens/s · ${stopwatch.elapsed.inSeconds} s';
+      }
+      progress.value = AiProgress(status, _stripThinking(raw));
+    }
+
+    emit();
+    final ticker = Timer.periodic(const Duration(seconds: 1), (_) => emit());
     try {
       final repository = await _repositoryFor(modelPath);
+      phase = 'Liest die Eingabe';
+      emit();
       // Qwen3 otherwise spends most tokens on hidden reasoning.
       if (modelPath.toLowerCase().contains('qwen3')) {
         userPrompt = '$userPrompt /no_think';
       }
-      final response = StringBuffer();
       final stream = repository.streamChatWithGenerationOptions(
         modelPath,
         messages: [
@@ -38,18 +78,23 @@ class LocalAiService {
         ),
       );
       await for (final chunk in stream) {
-        response.write(chunk.message?.content ?? '');
+        final content = chunk.message?.content ?? '';
+        if (content.isEmpty) continue;
+        if (tokens == 0) firstTokenAt = stopwatch.elapsed;
+        tokens++;
+        response.write(content);
+        emit();
       }
-      final result = response
-          .toString()
-          .replaceAll(RegExp(r'<think>[\s\S]*?(</think>|$)'), '')
-          .trim();
+      final result = _stripThinking(response.toString());
       if (result.isEmpty) {
         throw StateError('Das lokale Modell hat keine Antwort geliefert.');
       }
       return result;
     } on ModelLoadException {
       throw StateError(await _explainModelLoadFailure(modelPath));
+    } finally {
+      ticker.cancel();
+      progress.value = null;
     }
   }
 
