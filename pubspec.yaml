@@ -31,6 +31,10 @@ dev_dependencies:
   test: ^1.31.1
   flutter_launcher_icons: ^0.14.4
 
+dependency_overrides:
+  llm_llamacpp:
+    path: third_party/llm_llamacpp
+
 flutter_icons:
   android: true
   ios: false

@@ -547,10 +547,9 @@ packages:
   llm_llamacpp:
     dependency: "direct main"
     description:
-      name: llm_llamacpp
-      sha256: "4286930d0dfb97287c84602be67ad9548a92bbf0278926192348880bb3af8e8f"
-      url: "https://pub.dev"
-    source: hosted
+      path: "third_party/llm_llamacpp"
+      relative: true
+    source: path
     version: "0.7.0"
   local_auth:
     dependency: "direct main"
