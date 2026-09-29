@@ -25,9 +25,9 @@ class CategoryIcon extends StatelessWidget {
         Color(category.colorValue),
       ),
       'thought' => ('white_transparent_thought.svg', Colors.white),
-      'spark' => ('lightbulb-on.svg', const Color(0xFFFFF176)),
-      'chaos' => ('dizzy.svg', Color(category.colorValue)),
-      _ => ('surprise.svg', Colors.white),
+      'spark' => ('white_transparent_spark.svg', const Color(0xFFFFF176)),
+      'chaos' => ('white_transparent_chaos.svg', Color(category.colorValue)),
+      _ => ('', Colors.white),
     };
     final color = stealth ? const Color(0xFF777777) : categoryColor;
 
