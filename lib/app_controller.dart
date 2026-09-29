@@ -76,6 +76,27 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<String> createPasswordBackup(String password) {
+    final store = _store;
+    if (store is! EncryptedJournalStore) {
+      throw StateError(
+        'Passwort-Backups sind für diesen Store nicht verfügbar.',
+      );
+    }
+    return store.createPasswordBackup(password);
+  }
+
+  Future<void> restorePasswordBackup(String backup, String password) async {
+    final store = _store;
+    if (store is! EncryptedJournalStore) {
+      throw StateError(
+        'Passwort-Backups sind für diesen Store nicht verfügbar.',
+      );
+    }
+    await store.restorePasswordBackup(backup, password);
+    await load();
+  }
+
   Future<String> companionReply(JournalEntry entry) {
     return _localAi.generate(
       modelPath: _requireLocalModel(),

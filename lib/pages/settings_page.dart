@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -41,6 +43,78 @@ class _SettingsPageState extends State<SettingsPage> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('Einstellungen gespeichert.')));
+  }
+
+  Future<void> _exportBackup() async {
+    final password = await _askMasterPassword(confirm: true);
+    if (password == null) return;
+    try {
+      final backup = await widget.controller.createPasswordBackup(password);
+      final path = await FilePicker.saveFile(
+        dialogTitle: 'Verschlüsseltes Backup speichern',
+        fileName: 'filterlos-ich-backup.json',
+        bytes: Uint8List.fromList(utf8.encode(backup)),
+        mimeType: 'application/json',
+        type: FileType.custom,
+        allowedExtensions: const ['json'],
+      );
+      if (path == null) return;
+      _showMessage('Passwort-Backup gespeichert.');
+    } catch (error) {
+      _showMessage(error.toString().replaceFirst('Invalid argument(s): ', ''));
+    }
+  }
+
+  Future<void> _importBackup() async {
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Backup wiederherstellen?'),
+        content: const Text(
+          'Der aktuelle lokale Store wird durch den Inhalt des Backups ersetzt.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Fortfahren'),
+          ),
+        ],
+      ),
+    );
+    if (approved != true) return;
+    final files = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['json'],
+    );
+    if (files.isEmpty) return;
+    final selected = files.single;
+    final backupBytes = <int>[];
+    await for (final chunk in selected.readAsByteStream()) {
+      backupBytes.addAll(chunk);
+    }
+    final backup = utf8.decode(backupBytes);
+    final password = await _askMasterPassword();
+    if (password == null) return;
+    try {
+      await widget.controller.restorePasswordBackup(backup, password);
+      if (!mounted) return;
+      _draft = widget.controller.settings;
+      _memoryController.text = _draft.userMemorySummary;
+      _showMessage('Backup wiederhergestellt.');
+    } catch (error) {
+      _showMessage(error.toString().replaceFirst('FormatException: ', ''));
+    }
+  }
+
+  Future<String?> _askMasterPassword({bool confirm = false}) {
+    return showDialog<String>(
+      context: context,
+      builder: (_) => _MasterPasswordDialog(confirm: confirm),
+    );
   }
 
   Future<void> _managePin() async {
@@ -440,6 +514,29 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const Divider(height: 32),
           Text(
+            'Datensicherung',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Backups werden mit einem Masterpasswort verschlüsselt. Das '
+            'Masterpasswort wird nicht gespeichert. Bewahre es getrennt vom '
+            'Backup auf.',
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: _exportBackup,
+            icon: const Icon(Icons.lock_outline),
+            label: const Text('Backup mit Masterpasswort speichern'),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: _importBackup,
+            icon: const Icon(Icons.restore_outlined),
+            label: const Text('Backup wiederherstellen'),
+          ),
+          const Divider(height: 32),
+          Text(
             'Zugriffsschutz',
             style: Theme.of(context).textTheme.titleMedium,
           ),
@@ -602,6 +699,84 @@ class _PinChange {
 
   final String currentPin;
   final String newPin;
+}
+
+class _MasterPasswordDialog extends StatefulWidget {
+  const _MasterPasswordDialog({required this.confirm});
+
+  final bool confirm;
+
+  @override
+  State<_MasterPasswordDialog> createState() => _MasterPasswordDialogState();
+}
+
+class _MasterPasswordDialogState extends State<_MasterPasswordDialog> {
+  final _password = TextEditingController();
+  final _confirmation = TextEditingController();
+  String? _error;
+
+  void _submit() {
+    if (_password.text.trim().length < 8) {
+      setState(() => _error = 'Mindestens 8 Zeichen verwenden.');
+      return;
+    }
+    if (widget.confirm && _password.text != _confirmation.text) {
+      setState(() => _error = 'Die Masterpasswörter stimmen nicht überein.');
+      return;
+    }
+    Navigator.of(context).pop(_password.text);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(
+        widget.confirm ? 'Masterpasswort festlegen' : 'Masterpasswort eingeben',
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _password,
+            obscureText: true,
+            autofocus: true,
+            decoration: const InputDecoration(labelText: 'Masterpasswort'),
+            onSubmitted: (_) => _submit(),
+          ),
+          if (widget.confirm) ...[
+            const SizedBox(height: 12),
+            TextField(
+              controller: _confirmation,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Wiederholen'),
+              onSubmitted: (_) => _submit(),
+            ),
+          ],
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Abbrechen'),
+        ),
+        FilledButton(onPressed: _submit, child: const Text('Weiter')),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    _password.dispose();
+    _confirmation.dispose();
+    super.dispose();
+  }
 }
 
 class _PinDialog extends StatefulWidget {

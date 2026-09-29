@@ -50,6 +50,50 @@ void main() {
     expect(restoredEntries.single['text'], 'private thought marker');
   });
 
+  test('password backup restores the encrypted journal', () async {
+    final sourceDirectory = await Directory.systemTemp.createTemp(
+      'filterlos_backup_source_',
+    );
+    final restoreDirectory = await Directory.systemTemp.createTemp(
+      'filterlos_backup_restore_',
+    );
+    addTearDown(() async {
+      await sourceDirectory.delete(recursive: true);
+      await restoreDirectory.delete(recursive: true);
+    });
+    final source = EncryptedJournalStore(
+      secrets: _MemorySecretStore(),
+      supportDirectory: sourceDirectory,
+    );
+    await source.initialize();
+    await source.saveState({
+      'entries': [
+        {
+          'id': 'backup-entry',
+          'categoryId': 'joy',
+          'createdAt': '2026-09-29T12:00:00.000',
+          'text': 'restore me',
+          'attachments': <Map<String, dynamic>>[],
+        },
+      ],
+      'settings': null,
+    });
+    final backup = await source.createPasswordBackup('correct horse battery');
+
+    final restored = EncryptedJournalStore(
+      secrets: _MemorySecretStore(),
+      supportDirectory: restoreDirectory,
+    );
+    await restored.initialize();
+    await restored.restorePasswordBackup(backup, 'correct horse battery');
+    final state = await restored.loadState();
+    expect((state['entries'] as List).single['text'], 'restore me');
+    await expectLater(
+      restored.restorePasswordBackup(backup, 'wrong password'),
+      throwsA(isA<FormatException>()),
+    );
+  });
+
   test('timeline PIN is verified without storing plaintext PIN', () async {
     final tempDirectory = await Directory.systemTemp.createTemp(
       'filterlos_pin_test_',

@@ -20,6 +20,7 @@ Das In-App-Ventil für Ausraster, Geistesblitze und ungefilterte Gedanken.
 - manuell gestarteter Tagesrückblick und Fragen ans Tagebuch mit lokaler Stichwortauswahl
 - verschlüsseltes, einsehbares und editierbares Nutzer-Memory; Aktualisierung nur auf ausdrücklichen Klick
 - lokale Speicherung ohne Backend und ohne Cloud-Synchronisierung
+- passwortgeschützte lokale Backups zum Wiederherstellen auf einem neuen Gerät
 
 ## Emotionen und Kategorien
 
@@ -50,6 +51,7 @@ Die Schnellerfassung ist vom Timeline-Zugriff getrennt. Die PIN schützt die Tim
 - Nach fünf falschen PIN-Eingaben wird der Zugriff für 30 Sekunden verzögert.
 - Unter Android kann `local_auth` Biometrie für die Timeline anbieten. Linux verwendet die App-PIN.
 - Es gibt kein Backend, keine Cloud-Synchronisierung, kein Tracking und keine automatische Übertragung.
+- Backups werden mit einem vom Nutzer gewählten Masterpasswort per PBKDF2 und AES-256-GCM verschlüsselt. Das Masterpasswort wird nicht gespeichert; ohne dieses Passwort ist ein Backup nicht wiederherstellbar.
 - GGUF-Modell-Dateien werden vom Nutzer ausgewählt und im App-Support-Ordner abgelegt. Sie sind Modellgewichte, keine Tagebuchdaten, und liegen nicht im AES-Journalcontainer.
 - Der Stealth-Modus verändert die Darstellung, verhindert aber nicht Screenshots oder Einsicht durch Betriebssystem-/Gerätezugriff.
 - On-Device-Spracherkennung hängt von den lokal installierten Betriebssystemdiensten und Sprachmodellen ab. Bei fehlender Offline-Unterstützung bleibt die manuelle Eingabe verfügbar.
