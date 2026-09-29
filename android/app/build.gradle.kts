@@ -22,6 +22,13 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    // llama.cpp lists the native library directory to load ggml backends.
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "be.heister.filterlosich"
