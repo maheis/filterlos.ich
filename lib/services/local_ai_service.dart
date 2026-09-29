@@ -20,6 +20,10 @@ class LocalAiService {
   }) async {
     try {
       final repository = await _repositoryFor(modelPath);
+      // Qwen3 otherwise spends most tokens on hidden reasoning.
+      if (modelPath.toLowerCase().contains('qwen3')) {
+        userPrompt = '$userPrompt /no_think';
+      }
       final response = StringBuffer();
       final stream = repository.streamChatWithGenerationOptions(
         modelPath,
@@ -36,7 +40,10 @@ class LocalAiService {
       await for (final chunk in stream) {
         response.write(chunk.message?.content ?? '');
       }
-      final result = response.toString().trim();
+      final result = response
+          .toString()
+          .replaceAll(RegExp(r'<think>[\s\S]*?(</think>|$)'), '')
+          .trim();
       if (result.isEmpty) {
         throw StateError('Das lokale Modell hat keine Antwort geliefert.');
       }
@@ -57,7 +64,7 @@ class LocalAiService {
         _loadedModel!,
         _modelRepository!.bindings,
         contextSize: 2048,
-        threads: 2,
+        threads: 4,
         nGpuLayers: 0,
       );
     }
