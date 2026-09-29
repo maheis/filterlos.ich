@@ -155,7 +155,11 @@ class _EmotionTile extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           child: Center(
-            child: CategoryIcon(category: category, size: 56, stealth: stealth),
+            child: CategoryIcon(
+              category: category,
+              size: 112,
+              stealth: stealth,
+            ),
           ),
         ),
       ),

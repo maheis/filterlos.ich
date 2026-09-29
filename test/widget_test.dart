@@ -190,12 +190,32 @@ void main() {
     expect(find.text('Was ist gerade in dir?'), findsOneWidget);
     expect(find.text('Timeline'), findsOneWidget);
     for (final (category, asset, color) in [
-      (EmotionCategory.all[0], 'angry.svg', const Color(0xFFE57373)),
-      (EmotionCategory.all[1], 'grin-beam.svg', const Color(0xFFAED581)),
-      (EmotionCategory.all[2], 'sad-tear.svg', const Color(0xFF64B5F6)),
-      (EmotionCategory.all[3], 'surprise.svg', Colors.white),
-      (EmotionCategory.all[4], 'lightbulb-on.svg', const Color(0xFFFFF176)),
-      (EmotionCategory.all[5], 'dizzy.svg', const Color(0xFF9575CD)),
+      (
+        EmotionCategory.all[0],
+        'white_transparent_vent.svg',
+        const Color(0xFFE57373),
+      ),
+      (
+        EmotionCategory.all[1],
+        'white_transparent_joy.svg',
+        const Color(0xFFAED581),
+      ),
+      (
+        EmotionCategory.all[2],
+        'white_transparent_sadness.svg',
+        const Color(0xFF64B5F6),
+      ),
+      (EmotionCategory.all[3], 'white_transparent_thought.svg', Colors.white),
+      (
+        EmotionCategory.all[4],
+        'white_transparent_spark.svg',
+        const Color(0xFFFFF176),
+      ),
+      (
+        EmotionCategory.all[5],
+        'white_transparent_chaos.svg',
+        const Color(0xFF9575CD),
+      ),
     ]) {
       final iconFinder = find.byWidgetPredicate(
         (widget) => widget is CategoryIcon && widget.category == category,
