@@ -7,23 +7,28 @@ class LocalModelCatalogEntry {
   const LocalModelCatalogEntry({
     required this.id,
     required this.name,
+    required this.description,
     required this.repository,
     required this.filename,
     required this.sizeBytes,
     required this.sha256,
     this.downloadUrlOverride,
+    this.licenseRepository,
   });
 
   final String id;
   final String name;
+  final String description;
   final String repository;
   final String filename;
   final int sizeBytes;
   final String sha256;
   final String? downloadUrlOverride;
+  final String? licenseRepository;
 
   String get sourceUrl => 'https://huggingface.co/$repository';
-  String get licenseUrl => '$sourceUrl/blob/main/LICENSE';
+  String get licenseUrl =>
+      'https://huggingface.co/${licenseRepository ?? repository}/blob/main/LICENSE';
   String get downloadUrl =>
       downloadUrlOverride ?? '$sourceUrl/resolve/main/$filename?download=true';
 
@@ -31,6 +36,7 @@ class LocalModelCatalogEntry {
     LocalModelCatalogEntry(
       id: 'qwen2.5-0.5b-q4km',
       name: 'Qwen2.5 0.5B · Q4_K_M',
+      description: 'Schnell · läuft auf fast allen Geräten',
       repository: 'Qwen/Qwen2.5-0.5B-Instruct-GGUF',
       filename: 'qwen2.5-0.5b-instruct-q4_k_m.gguf',
       sizeBytes: 491400032,
@@ -38,22 +44,36 @@ class LocalModelCatalogEntry {
           '74a4da8c9fdbcd15bd1f6d01d621410d31c6fc00986f5eb687824e7b93d7a9db',
     ),
     LocalModelCatalogEntry(
-      id: 'qwen3-1.7b-q8',
-      name: 'Qwen3 1.7B · Q8_0',
-      repository: 'Qwen/Qwen3-1.7B-GGUF',
-      filename: 'Qwen3-1.7B-Q8_0.gguf',
-      sizeBytes: 1834426016,
+      id: 'qwen3-1.7b-q4km',
+      name: 'Qwen3 1.7B · Q4_K_M',
+      description: 'Ausgewogen · bessere Texte, etwas langsamer',
+      // Qwen publishes 1.7B only as Q8_0; this is Unsloth's quantization.
+      repository: 'unsloth/Qwen3-1.7B-GGUF',
+      licenseRepository: 'Qwen/Qwen3-1.7B',
+      filename: 'Qwen3-1.7B-Q4_K_M.gguf',
+      sizeBytes: 1107409472,
       sha256:
-          '061b54daade076b5d3362dac252678d17da8c68f07560be70818cace6590cb1a',
+          'b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897',
     ),
     LocalModelCatalogEntry(
       id: 'qwen3-4b-q4km',
       name: 'Qwen3 4B · Q4_K_M',
+      description: 'Stark · deutlich besser, braucht länger',
       repository: 'Qwen/Qwen3-4B-GGUF',
       filename: 'Qwen3-4B-Q4_K_M.gguf',
       sizeBytes: 2497280256,
       sha256:
           '7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5',
+    ),
+    LocalModelCatalogEntry(
+      id: 'qwen3-8b-q4km',
+      name: 'Qwen3 8B · Q4_K_M',
+      description: 'Beste Qualität · am langsamsten, ab ca. 12 GB RAM',
+      repository: 'Qwen/Qwen3-8B-GGUF',
+      filename: 'Qwen3-8B-Q4_K_M.gguf',
+      sizeBytes: 5027783488,
+      sha256:
+          'd98cdcbd03e17ce47681435b5150e34c1417f50b5c0019dd560e4882c5745785',
     ),
   ];
 }

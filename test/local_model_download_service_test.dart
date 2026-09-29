@@ -31,6 +31,7 @@ void main() {
     return LocalModelCatalogEntry(
       id: 'test',
       name: 'Test model',
+      description: 'Test',
       repository: 'test/model',
       filename: 'test.gguf',
       sizeBytes: 3,

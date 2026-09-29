@@ -608,6 +608,7 @@ class _SettingsPageState extends State<SettingsPage> {
           contentPadding: EdgeInsets.zero,
           title: Text(model.name),
           subtitle: Text(
+            '${model.description}\n'
             '${formatModelSize(model.sizeBytes)} · Apache 2.0 · Qwen',
           ),
           trailing: isDownloading
