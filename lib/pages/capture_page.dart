@@ -295,32 +295,50 @@ class _CapturePageState extends State<CapturePage> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
+                Row(
                   children: [
-                    OutlinedButton.icon(
-                      onPressed: _pickImage,
-                      icon: const Icon(Icons.image_outlined),
-                      label: const Text('Bild'),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: _toggleRecording,
-                      icon: Icon(_isRecording ? Icons.stop : Icons.mic_none),
-                      label: Text(
-                        _isRecording ? 'Aufnahme stoppen' : 'Sprachnotizen',
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _pickImage,
+                        icon: const Icon(Icons.image_outlined),
+                        label: const Text('Bild'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                        ),
                       ),
                     ),
-                    if (_canUseSpeech)
-                      FilledButton.tonalIcon(
-                        onPressed: _toggleSpeech,
-                        icon: Icon(
-                          _isListening ? Icons.stop : Icons.graphic_eq,
-                        ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _toggleRecording,
+                        icon: Icon(_isRecording ? Icons.stop : Icons.mic_none),
                         label: Text(
-                          _isListening ? 'Diktat stoppen' : 'Diktieren',
+                          _isRecording ? 'Aufnahme stoppen' : 'Sprachnotizen',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
                         ),
                       ),
+                    ),
+                    if (_canUseSpeech) ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FilledButton.tonalIcon(
+                          onPressed: _toggleSpeech,
+                          icon: Icon(
+                            _isListening ? Icons.stop : Icons.graphic_eq,
+                          ),
+                          label: Text(
+                            _isListening ? 'Diktat stoppen' : 'Diktieren',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
                 if (_isRecording || _isListening) ...[

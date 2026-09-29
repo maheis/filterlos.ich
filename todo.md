@@ -23,3 +23,4 @@
 - [x] "verschlüsselt speichern" -> speichern
 - [x] "offline diktieren" -> diktieren
 - [x] "Audio aufnhemen" -> sprachnotizen
+- [x] diktieren button rauf in die reihe mit bild und sprachnotiz
