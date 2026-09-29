@@ -292,10 +292,10 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(home: SettingsPage(controller: controller)),
     );
-    expect(find.text('Qwen3 0.6B · Q8_0'), findsOneWidget);
+    expect(find.text('Qwen2.5 0.5B · Q4_K_M'), findsOneWidget);
     expect(find.text('Qwen3 1.7B · Q8_0'), findsOneWidget);
     expect(find.text('Qwen3 4B · Q4_K_M'), findsOneWidget);
-    expect(find.text('639 MB · Apache 2.0 · Qwen'), findsOneWidget);
+    expect(find.text('491 MB · Apache 2.0 · Qwen'), findsOneWidget);
     expect(find.text('1.83 GB · Apache 2.0 · Qwen'), findsOneWidget);
     expect(find.text('2.50 GB · Apache 2.0 · Qwen'), findsOneWidget);
   });

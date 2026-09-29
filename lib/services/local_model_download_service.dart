@@ -29,13 +29,13 @@ class LocalModelCatalogEntry {
 
   static const officialModels = <LocalModelCatalogEntry>[
     LocalModelCatalogEntry(
-      id: 'qwen3-0.6b-q8',
-      name: 'Qwen3 0.6B · Q8_0',
-      repository: 'Qwen/Qwen3-0.6B-GGUF',
-      filename: 'Qwen3-0.6B-Q8_0.gguf',
-      sizeBytes: 639446688,
+      id: 'qwen2.5-0.5b-q4km',
+      name: 'Qwen2.5 0.5B · Q4_K_M',
+      repository: 'Qwen/Qwen2.5-0.5B-Instruct-GGUF',
+      filename: 'qwen2.5-0.5b-instruct-q4_k_m.gguf',
+      sizeBytes: 491400032,
       sha256:
-          '9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031',
+          '74a4da8c9fdbcd15bd1f6d01d621410d31c6fc00986f5eb687824e7b93d7a9db',
     ),
     LocalModelCatalogEntry(
       id: 'qwen3-1.7b-q8',
