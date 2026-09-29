@@ -1,5 +1,37 @@
 part of 'persistent_inference_isolate.dart';
 
+// Patched: keep the model loaded between requests instead of reloading it each time.
+ffi.Pointer<llama_model> _cachedModel = ffi.nullptr;
+String? _cachedModelKey;
+
+ffi.Pointer<llama_model> _acquireModel(
+  LlamaBindings bindings,
+  _InferenceRequestMessage request,
+) {
+  final key = '${request.modelPath}|${request.nGpuLayers}';
+  if (_cachedModel.address != 0 && _cachedModelKey == key) {
+    return _cachedModel;
+  }
+  if (_cachedModel.address != 0) {
+    bindings.llama_model_free(_cachedModel);
+    _cachedModel = ffi.nullptr;
+    _cachedModelKey = null;
+  }
+  final modelParams = bindings.llama_model_default_params();
+  modelParams.n_gpu_layers = request.nGpuLayers;
+  final modelPathPtr = request.modelPath.toNativeUtf8();
+  final model = bindings.llama_model_load_from_file(
+    modelPathPtr.cast(),
+    modelParams,
+  );
+  calloc.free(modelPathPtr);
+  if (model.address != 0) {
+    _cachedModel = model;
+    _cachedModelKey = key;
+  }
+  return model;
+}
+
 void _handleInferenceRequest(
   _InferenceRequestMessage request,
   SendPort mainSendPort,
@@ -9,15 +41,7 @@ void _handleInferenceRequest(
   ffi.Pointer<llama_adapter_lora>? loraAdapter;
 
   try {
-    final modelParams = bindings.llama_model_default_params();
-    modelParams.n_gpu_layers = request.nGpuLayers;
-
-    final modelPathPtr = request.modelPath.toNativeUtf8();
-    final model = bindings.llama_model_load_from_file(
-      modelPathPtr.cast(),
-      modelParams,
-    );
-    calloc.free(modelPathPtr);
+    final model = _acquireModel(bindings, request);
 
     if (model.address == 0) {
       mainSendPort.send(
@@ -38,7 +62,6 @@ void _handleInferenceRequest(
       calloc.free(loraPathPtr);
 
       if (loraAdapter.address == 0) {
-        bindings.llama_model_free(model);
         mainSendPort.send(
           _IsolateResponse(
             requestId: request.requestId,
@@ -90,7 +113,6 @@ void _handleInferenceRequest(
       if (loraAdapter != null) {
         bindings.llama_adapter_lora_free(loraAdapter);
       }
-      bindings.llama_model_free(model);
       mainSendPort.send(
         _IsolateResponse(
           requestId: request.requestId,
@@ -111,7 +133,6 @@ void _handleInferenceRequest(
       if (result != 0) {
         bindings.llama_free(ctx);
         bindings.llama_adapter_lora_free(loraAdapter);
-        bindings.llama_model_free(model);
         mainSendPort.send(
           _IsolateResponse(
             requestId: request.requestId,
@@ -352,7 +373,6 @@ void _handleInferenceRequest(
         bindings.llama_adapter_lora_free(loraAdapter);
       }
       bindings.llama_free(ctx);
-      bindings.llama_model_free(model);
     }
   } catch (e) {
     mainSendPort.send(

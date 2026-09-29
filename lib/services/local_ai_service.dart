@@ -64,6 +64,7 @@ class LocalAiService {
         _loadedModel!,
         _modelRepository!.bindings,
         contextSize: 2048,
+        batchSize: 2048,
         threads: 4,
         nGpuLayers: 0,
       );
