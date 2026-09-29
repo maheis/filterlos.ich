@@ -1,7 +1,7 @@
 name: filterlos_ich
 description: "Das In-App-Ventil für Ausraster, Geistesblitze und ungefilterte Gedanken."
 publish_to: "none" # Remove this line if you wish to publish to pub.dev
-version: 0.0.13+13
+version: 0.0.14+14
 
 environment:
   sdk: ^3.13.4
@@ -29,6 +29,14 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   test: ^1.31.1
+  flutter_launcher_icons: ^0.14.4
+
+flutter_icons:
+  android: true
+  ios: false
+  image_path: assets/icons/color_teal_icon_android.png
+  adaptive_icon_background: assets/icons/color_teal_icon_android_background.png
+  adaptive_icon_foreground: assets/icons/color_teal_icon_android.png
 
 flutter:
   uses-material-design: true
