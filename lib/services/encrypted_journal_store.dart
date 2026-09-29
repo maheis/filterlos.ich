@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 abstract interface class SecretStore {
   Future<String?> read(String key);
   Future<void> write(String key, String value);
+  Future<void> delete(String key);
 }
 
 abstract interface class JournalStore {
@@ -32,6 +33,9 @@ class PlatformSecretStore implements SecretStore {
   @override
   Future<void> write(String key, String value) =>
       _storage.write(key: key, value: value);
+
+  @override
+  Future<void> delete(String key) => _storage.delete(key: key);
 }
 
 class EncryptedJournalStore implements JournalStore {
@@ -69,6 +73,13 @@ class EncryptedJournalStore implements JournalStore {
       }
       _masterKey = SecretKey(keyBytes);
     }
+  }
+
+  Future<void> clearLocalData() async {
+    if (await _databaseFile.exists()) await _databaseFile.delete();
+    await _secrets.delete(_masterKeyStorageKey);
+    await _secrets.delete(_pinSaltStorageKey);
+    await _secrets.delete(_pinHashStorageKey);
   }
 
   @override
