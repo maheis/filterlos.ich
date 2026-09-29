@@ -4,8 +4,7 @@ Das In-App-Ventil für Ausraster, Geistesblitze und ungefilterte Gedanken.
 
 `filterlos.ich` ist ein lokales Gedanken- und Emotionstagebuch. Das 2×3-Schnellerfassungsraster öffnet direkt den passenden Eintrag, damit ein Gedanke festgehalten werden kann, bevor er wieder verschwindet.
 
-**KI-Name:** fi  
-**Projektidee:** [unfiltered.me](https://unfiltered.me)
+![Vorstellungsgrafik](.notes/vorstellungsgrafik.png)
 
 ## Erste Version: umgesetzt
 
