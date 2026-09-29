@@ -9,6 +9,8 @@ import 'local_model_download_service.dart';
 class LocalAiService {
   String? _modelPath;
   LlamaCppChatRepository? _chatRepository;
+  LlamaCppRepository? _modelRepository;
+  LlamaCppModel? _loadedModel;
 
   Future<String> generate({
     required String modelPath,
@@ -16,41 +18,44 @@ class LocalAiService {
     required String userPrompt,
     int maxTokens = 240,
   }) async {
-    final repository = _repositoryFor(modelPath);
-    final response = StringBuffer();
-    final stream = repository.streamChatWithGenerationOptions(
-      modelPath,
-      messages: [
-        LLMMessage(role: LLMRole.system, content: systemPrompt),
-        LLMMessage(role: LLMRole.user, content: userPrompt),
-      ],
-      generationOptions: GenerationOptions(
-        temperature: 0.65,
-        topP: 0.9,
-        maxTokens: maxTokens,
-      ),
-    );
-
     try {
+      final repository = await _repositoryFor(modelPath);
+      final response = StringBuffer();
+      final stream = repository.streamChatWithGenerationOptions(
+        modelPath,
+        messages: [
+          LLMMessage(role: LLMRole.system, content: systemPrompt),
+          LLMMessage(role: LLMRole.user, content: userPrompt),
+        ],
+        generationOptions: GenerationOptions(
+          temperature: 0.65,
+          topP: 0.9,
+          maxTokens: maxTokens,
+        ),
+      );
       await for (final chunk in stream) {
         response.write(chunk.message?.content ?? '');
       }
+      final result = response.toString().trim();
+      if (result.isEmpty) {
+        throw StateError('Das lokale Modell hat keine Antwort geliefert.');
+      }
+      return result;
     } on ModelLoadException {
       throw StateError(await _explainModelLoadFailure(modelPath));
     }
-    final result = response.toString().trim();
-    if (result.isEmpty) {
-      throw StateError('Das lokale Modell hat keine Antwort geliefert.');
-    }
-    return result;
   }
 
-  LlamaCppChatRepository _repositoryFor(String modelPath) {
+  Future<LlamaCppChatRepository> _repositoryFor(String modelPath) async {
     if (_modelPath != modelPath || _chatRepository == null) {
       _chatRepository?.dispose();
+      _modelRepository?.dispose();
       _modelPath = modelPath;
-      _chatRepository = LlamaCppChatRepository.withModelPath(
-        modelPath,
+      _modelRepository = LlamaCppRepository();
+      _loadedModel = await _modelRepository!.loadModel(modelPath);
+      _chatRepository = LlamaCppChatRepository.withModel(
+        _loadedModel!,
+        _modelRepository!.bindings,
         contextSize: 2048,
         threads: 2,
         nGpuLayers: 0,
@@ -61,7 +66,10 @@ class LocalAiService {
 
   void dispose() {
     _chatRepository?.dispose();
+    _modelRepository?.dispose();
     _chatRepository = null;
+    _modelRepository = null;
+    _loadedModel = null;
     _modelPath = null;
   }
 
