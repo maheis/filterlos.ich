@@ -24,3 +24,5 @@
 - [x] "offline diktieren" -> diktieren
 - [x] "Audio aufnhemen" -> sprachnotizen
 - [x] diktieren button rauf in die reihe mit bild und sprachnotiz
+- [ ] Für maximale Geschwindigkeit: Groq API mit Llama 3.2 (Antworten erscheinen quasi ohne Verzögerung).
+- [ ] Für maximale DSGVO-Konformität: Mistral AI API (Server in der EU, beste deutsche Sprachbeherrschung).

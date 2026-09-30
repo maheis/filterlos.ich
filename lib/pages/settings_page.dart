@@ -220,7 +220,10 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  Future<void> _downloadModel(LocalModelCatalogEntry model) async {
+  Future<void> _downloadModel(
+    LocalModelCatalogEntry model, {
+    bool asEmbeddingModel = false,
+  }) async {
     final approved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -228,7 +231,7 @@ class _SettingsPageState extends State<SettingsPage> {
         content: Text(
           '${model.name}\n'
           'Download: ${formatModelSize(model.sizeBytes)}\n'
-          'Lizenz: Apache 2.0\n\n'
+          'Lizenz: ${model.licenseLabel}\n\n'
           'Die Datei wird von Hugging Face geladen und im privaten App-Ordner '
           'gespeichert. Dafür wird zusätzlicher Gerätespeicher benötigt. '
           'Tagebucheinträge werden nicht übertragen. Das Modell selbst ist '
@@ -266,10 +269,15 @@ class _SettingsPageState extends State<SettingsPage> {
         },
       );
       if (!mounted) return;
-      final next = _draft.copyWith(
-        localModelPath: file.path,
-        userMemorySummary: _memoryController.text.trim(),
-      );
+      final next = asEmbeddingModel
+          ? _draft.copyWith(
+              embeddingModelPath: file.path,
+              userMemorySummary: _memoryController.text.trim(),
+            )
+          : _draft.copyWith(
+              localModelPath: file.path,
+              userMemorySummary: _memoryController.text.trim(),
+            );
       await widget.controller.updateSettings(next);
       if (!mounted) return;
       setState(() => _draft = next);
@@ -323,6 +331,20 @@ class _SettingsPageState extends State<SettingsPage> {
       if (mounted) setState(() => _draft = next);
     } catch (_) {
       _showMessage('Das Modell konnte nicht entfernt werden.');
+    }
+  }
+
+  Future<void> _removeEmbeddingModel() async {
+    final modelPath = _draft.embeddingModelPath;
+    if (modelPath.isEmpty) return;
+    try {
+      final file = File(modelPath);
+      if (await file.exists()) await file.delete();
+      final next = _draft.copyWith(embeddingModelPath: '');
+      await widget.controller.updateSettings(next);
+      if (mounted) setState(() => _draft = next);
+    } catch (_) {
+      _showMessage('Das Suchmodell konnte nicht entfernt werden.');
     }
   }
 
@@ -477,6 +499,32 @@ class _SettingsPageState extends State<SettingsPage> {
               _copyingModel ? 'Kopiere Modell…' : 'GGUF-Modell importieren',
             ),
           ),
+          const SizedBox(height: 20),
+          Text('Tagebuchsuche', style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 4),
+          const Text(
+            'Mit diesem kleinen Zusatzmodell findet fi passende Einträge auch '
+            'dann, wenn du andere Wörter benutzt als im Eintrag. Ohne das '
+            'Modell wird nach Stichwörtern gesucht.',
+          ),
+          if (settings.embeddingModelPath.isNotEmpty)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.travel_explore_outlined),
+              title: Text(p.basename(settings.embeddingModelPath)),
+              subtitle: const Text('Aktiv für die Tagebuchsuche'),
+              trailing: IconButton(
+                tooltip: 'Suchmodell entfernen',
+                onPressed: _removeEmbeddingModel,
+                icon: const Icon(Icons.delete_outline),
+              ),
+            )
+          else
+            _modelDownloadOption(
+              LocalModelCatalogEntry.embeddingModel,
+              settings,
+              asEmbeddingModel: true,
+            ),
           const SizedBox(height: 16),
           TextField(
             controller: _memoryController,
@@ -597,10 +645,14 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Widget _modelDownloadOption(
     LocalModelCatalogEntry model,
-    FilterlosSettings settings,
-  ) {
+    FilterlosSettings settings, {
+    bool asEmbeddingModel = false,
+  }) {
     final isDownloading = _downloadingModelId == model.id;
-    final isActive = p.basename(settings.localModelPath) == model.filename;
+    final activePath = asEmbeddingModel
+        ? settings.embeddingModelPath
+        : settings.localModelPath;
+    final isActive = p.basename(activePath) == model.filename;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -609,7 +661,7 @@ class _SettingsPageState extends State<SettingsPage> {
           title: Text(model.name),
           subtitle: Text(
             '${model.description}\n'
-            '${formatModelSize(model.sizeBytes)} · Apache 2.0 · Qwen',
+            '${formatModelSize(model.sizeBytes)} · ${model.licenseLabel}',
           ),
           trailing: isDownloading
               ? IconButton(
@@ -623,7 +675,10 @@ class _SettingsPageState extends State<SettingsPage> {
                   tooltip: 'Modell herunterladen und aktivieren',
                   onPressed: _downloadingModelId != null || _copyingModel
                       ? null
-                      : () => _downloadModel(model),
+                      : () => _downloadModel(
+                          model,
+                          asEmbeddingModel: asEmbeddingModel,
+                        ),
                   icon: const Icon(Icons.download_outlined),
                 ),
         ),

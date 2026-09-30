@@ -11,6 +11,7 @@ class FilterlosSettings {
     required this.emojiButtons,
     required this.biometricTimeline,
     required this.localModelPath,
+    required this.embeddingModelPath,
     required this.userMemorySummary,
   });
 
@@ -42,6 +43,7 @@ class FilterlosSettings {
     emojiButtons: true,
     biometricTimeline: false,
     localModelPath: '',
+    embeddingModelPath: '',
     userMemorySummary: '',
   );
 
@@ -54,6 +56,7 @@ class FilterlosSettings {
   final bool emojiButtons;
   final bool biometricTimeline;
   final String localModelPath;
+  final String embeddingModelPath;
   final String userMemorySummary;
 
   FilterlosSettings copyWith({
@@ -66,6 +69,7 @@ class FilterlosSettings {
     bool? emojiButtons,
     bool? biometricTimeline,
     String? localModelPath,
+    String? embeddingModelPath,
     String? userMemorySummary,
   }) {
     return FilterlosSettings(
@@ -78,6 +82,7 @@ class FilterlosSettings {
       emojiButtons: emojiButtons ?? this.emojiButtons,
       biometricTimeline: biometricTimeline ?? this.biometricTimeline,
       localModelPath: localModelPath ?? this.localModelPath,
+      embeddingModelPath: embeddingModelPath ?? this.embeddingModelPath,
       userMemorySummary: userMemorySummary ?? this.userMemorySummary,
     );
   }
@@ -92,6 +97,7 @@ class FilterlosSettings {
     'emojiButtons': emojiButtons,
     'biometricTimeline': biometricTimeline,
     'localModelPath': localModelPath,
+    'embeddingModelPath': embeddingModelPath,
     'userMemorySummary': userMemorySummary,
   };
 
@@ -115,6 +121,7 @@ class FilterlosSettings {
       emojiButtons: json['emojiButtons'] as bool? ?? true,
       biometricTimeline: json['biometricTimeline'] as bool? ?? false,
       localModelPath: json['localModelPath'] as String? ?? '',
+      embeddingModelPath: json['embeddingModelPath'] as String? ?? '',
       userMemorySummary: json['userMemorySummary'] as String? ?? '',
     );
   }

@@ -349,6 +349,8 @@ void main() {
     expect(find.textContaining('1.11 GB · Apache 2.0'), findsOneWidget);
     expect(find.textContaining('2.50 GB · Apache 2.0'), findsOneWidget);
     expect(find.textContaining('5.03 GB · Apache 2.0'), findsOneWidget);
+    expect(find.text('Multilingual E5 Small · Q8_0'), findsOneWidget);
+    expect(find.textContaining('132 MB · MIT · intfloat'), findsOneWidget);
   });
 }
 

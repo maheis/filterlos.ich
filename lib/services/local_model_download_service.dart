@@ -12,6 +12,7 @@ class LocalModelCatalogEntry {
     required this.filename,
     required this.sizeBytes,
     required this.sha256,
+    this.licenseLabel = 'Apache 2.0 · Qwen',
     this.downloadUrlOverride,
     this.licenseRepository,
   });
@@ -23,6 +24,7 @@ class LocalModelCatalogEntry {
   final String filename;
   final int sizeBytes;
   final String sha256;
+  final String licenseLabel;
   final String? downloadUrlOverride;
   final String? licenseRepository;
 
@@ -76,6 +78,19 @@ class LocalModelCatalogEntry {
           'd98cdcbd03e17ce47681435b5150e34c1417f50b5c0019dd560e4882c5745785',
     ),
   ];
+
+  /// Sentence embeddings for the local diary search.
+  static const embeddingModel = LocalModelCatalogEntry(
+    id: 'multilingual-e5-small-q8',
+    name: 'Multilingual E5 Small · Q8_0',
+    description: 'Findet passende Einträge auch bei anderen Wörtern',
+    repository: 'cstr/multilingual-e5-small-GGUF',
+    licenseRepository: 'intfloat/multilingual-e5-small',
+    filename: 'multilingual-e5-small-q8_0.gguf',
+    sizeBytes: 131624960,
+    sha256: '0a34067a40f25d3149b36885faa62bee0e5284d0f9edc102acfc00e115d953e8',
+    licenseLabel: 'MIT · intfloat',
+  );
 }
 
 class LocalModelDownloadCancelled implements Exception {

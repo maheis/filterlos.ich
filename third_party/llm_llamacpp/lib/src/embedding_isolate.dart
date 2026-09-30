@@ -41,6 +41,8 @@ void runEmbedding(EmbeddingRequest request) {
     final ctxParams = bindings.llama_context_default_params();
     ctxParams.n_ctx = request.contextSize;
     ctxParams.n_batch = request.batchSize;
+    // Patched: without this llama.cpp returns no embeddings at all.
+    ctxParams.embeddings = true;
     if (request.threads != null) {
       ctxParams.n_threads = request.threads!;
       ctxParams.n_threads_batch = request.threads!;
@@ -62,13 +64,15 @@ void runEmbedding(EmbeddingRequest request) {
       for (final message in request.messages) {
         // Tokenize message
         final messagePtr = message.toNativeUtf8();
-        final maxTokens = message.length + 256;
+        // Byte length, not UTF-16 code units, so umlauts tokenize correctly.
+        final messageByteLen = messagePtr.length;
+        final maxTokens = messageByteLen + 256;
         final tokensPtr = calloc<ffi.Int32>(maxTokens);
 
         final nTokens = bindings.llama_tokenize(
           vocab,
           messagePtr.cast(),
-          message.length,
+          messageByteLen,
           tokensPtr,
           maxTokens,
           true, // add_special

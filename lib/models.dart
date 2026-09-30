@@ -75,6 +75,7 @@ class JournalEntry {
     required this.createdAt,
     required this.text,
     this.attachments = const [],
+    this.embedding,
   });
 
   final String id;
@@ -82,6 +83,18 @@ class JournalEntry {
   final DateTime createdAt;
   final String text;
   final List<JournalAttachment> attachments;
+
+  /// Vector of the entry text, computed locally for the semantic search.
+  final List<double>? embedding;
+
+  JournalEntry withEmbedding(List<double> value) => JournalEntry(
+    id: id,
+    categoryId: categoryId,
+    createdAt: createdAt,
+    text: text,
+    attachments: attachments,
+    embedding: value,
+  );
 
   EmotionCategory get category =>
       EmotionCategory.find(categoryId) ?? EmotionCategory.all[3];
@@ -94,6 +107,7 @@ class JournalEntry {
     'attachments': attachments
         .map((attachment) => attachment.toJson())
         .toList(),
+    if (embedding != null) 'embedding': embedding,
   };
 
   factory JournalEntry.fromJson(Map<String, dynamic> json) {
@@ -110,6 +124,10 @@ class JournalEntry {
             (item) =>
                 JournalAttachment.fromJson(Map<String, dynamic>.from(item)),
           )
+          .toList(),
+      embedding: (json['embedding'] as List<dynamic>?)
+          ?.whereType<num>()
+          .map((value) => value.toDouble())
           .toList(),
     );
   }

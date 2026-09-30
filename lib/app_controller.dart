@@ -6,6 +6,7 @@ import 'package:local_auth/local_auth.dart';
 import 'models.dart';
 import 'services/encrypted_journal_store.dart';
 import 'services/local_ai_service.dart';
+import 'services/local_embedding_service.dart';
 import 'ui_settings.dart';
 
 class AppController extends ChangeNotifier {
@@ -14,6 +15,7 @@ class AppController extends ChangeNotifier {
   final JournalStore _store;
   final LocalAuthentication _localAuthentication = LocalAuthentication();
   final LocalAiService _localAi = LocalAiService();
+  final LocalEmbeddingService _embeddings = LocalEmbeddingService();
 
   List<JournalEntry> entries = const [];
   FilterlosSettings settings = FilterlosSettings.defaults;
@@ -73,6 +75,9 @@ class AppController extends ChangeNotifier {
     if (value.localModelPath != settings.localModelPath) {
       _localAi.reset();
     }
+    if (value.embeddingModelPath != settings.embeddingModelPath) {
+      _embeddings.dispose();
+    }
     settings = value;
     await _persist();
     notifyListeners();
@@ -129,8 +134,8 @@ class AppController extends ChangeNotifier {
     );
   }
 
-  Future<String> askDiary(String question) {
-    final relevant = findRelevantEntries(question, entries);
+  Future<String> askDiary(String question) async {
+    final relevant = await findRelevantEntriesFor(question);
     if (relevant.isEmpty) {
       throw StateError('Das Tagebuch enthält noch keine Einträge.');
     }
@@ -160,6 +165,56 @@ class AppController extends ChangeNotifier {
       maxTokens: 180,
     );
     await updateSettings(settings.copyWith(userMemorySummary: summary));
+  }
+
+  /// Ranks entries by meaning when an embedding model is available and falls
+  /// back to the keyword search otherwise.
+  Future<List<JournalEntry>> findRelevantEntriesFor(String question) async {
+    final modelPath = settings.embeddingModelPath.trim();
+    if (modelPath.isEmpty || entries.isEmpty) {
+      return findRelevantEntries(question, entries);
+    }
+    try {
+      await _ensureEmbeddings(modelPath);
+      final questionVector = (await _embeddings.embed(modelPath, [
+        question,
+      ], isQuery: true)).first;
+      final ranked =
+          entries
+              .where((entry) => entry.embedding != null)
+              .map(
+                (entry) => (
+                  entry: entry,
+                  score: cosineSimilarity(questionVector, entry.embedding!),
+                ),
+              )
+              .toList()
+            ..sort((a, b) => b.score.compareTo(a.score));
+      if (ranked.isEmpty) return findRelevantEntries(question, entries);
+      return ranked.take(6).map((item) => item.entry).toList();
+    } catch (_) {
+      return findRelevantEntries(question, entries);
+    }
+  }
+
+  Future<void> _ensureEmbeddings(String modelPath) async {
+    final missing = entries
+        .where(
+          (entry) => entry.embedding == null && entry.text.trim().isNotEmpty,
+        )
+        .toList();
+    if (missing.isEmpty) return;
+    final vectors = await _embeddings.embed(
+      modelPath,
+      missing.map((entry) => entry.text).toList(),
+    );
+    if (vectors.length != missing.length) return;
+    final updated = {
+      for (var i = 0; i < missing.length; i++)
+        missing[i].id: missing[i].withEmbedding(vectors[i]),
+    };
+    entries = entries.map((entry) => updated[entry.id] ?? entry).toList();
+    await _persist();
   }
 
   String _requireLocalModel() {
@@ -247,6 +302,7 @@ class AppController extends ChangeNotifier {
   @override
   void dispose() {
     _localAi.dispose();
+    _embeddings.dispose();
     super.dispose();
   }
 }
