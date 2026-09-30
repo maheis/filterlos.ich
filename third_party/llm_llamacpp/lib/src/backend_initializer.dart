@@ -275,9 +275,28 @@ class BackendInitializer {
       print('[llm_llamacpp] ggml_backend_load_all_from_path failed: $e');
     }
 
-    // ggml_backend_load_all_from_path may silently fail on Android due to
-    // std::filesystem issues. Fall back to manually loading each backend.
+    // Patched: loading the same .so twice registers duplicate devices, which
+    // makes llama.cpp pick broken kernels. Only fall back if nothing registered.
+    final registered = _deviceCount(lib);
+    // ignore: avoid_print
+    print('[llm_llamacpp] Registered devices after load_all: $registered');
+    if (registered > 0) {
+      return true;
+    }
+
     return _loadBackendsManually(lib, nativeLibDir);
+  }
+
+  static int _deviceCount(ffi.DynamicLibrary lib) {
+    try {
+      return lib
+          .lookupFunction<ffi.Size Function(), int Function()>(
+            'ggml_backend_dev_count',
+          )
+          .call();
+    } catch (_) {
+      return 0;
+    }
   }
 
   /// Manually load backend .so files from the given directory.
@@ -319,54 +338,53 @@ class BackendInitializer {
 
     int loadedCount = 0;
 
+    bool load(String label, String fullPath) {
+      final pathPtr = fullPath.toNativeUtf8();
+      try {
+        final result = ggmlBackendLoad(pathPtr.cast<ffi.Char>());
+        if (result.address != 0) {
+          // ignore: avoid_print
+          print('[llm_llamacpp] Successfully loaded: $label');
+          loadedCount++;
+          return true;
+        }
+        // GPU backends may legitimately fail at runtime (e.g. Vulkan driver
+        // missing). That's not fatal; the CPU backend keeps working.
+        // ignore: avoid_print
+        print('[llm_llamacpp] Failed to load: $label (returned null)');
+        return false;
+      } finally {
+        calloc.free(pathPtr);
+      }
+    }
+
     try {
-      final files = dir.listSync();
+      final files = dir.listSync().whereType<File>().toList();
       // ignore: avoid_print
       print(
         '[llm_llamacpp] Found ${files.length} files in native lib directory',
       );
 
+      final cpuBackends = <File>[];
       for (final entity in files) {
-        if (entity is File) {
-          final filename = entity.uri.pathSegments.last;
-          // Load CPU backend variants and any GPU/accelerator backends shipped
-          // alongside (e.g. libggml-vulkan.so). All match `libggml-<name>.so`
-          // except libggml.so / libggml-base.so themselves which are loaded
-          // earlier as core dependencies.
-          final isCpuBackend =
-              filename.startsWith('libggml-cpu') && filename.endsWith('.so');
-          final isOtherBackend =
-              filename.startsWith('libggml-') &&
-              filename.endsWith('.so') &&
-              filename != 'libggml.so' &&
-              filename != 'libggml-base.so' &&
-              !filename.startsWith('libggml-cpu');
-          if (isCpuBackend || isOtherBackend) {
-            final fullPath = entity.path;
-            // ignore: avoid_print
-            print('[llm_llamacpp] Loading backend: $filename');
-
-            final pathPtr = fullPath.toNativeUtf8();
-            try {
-              final result = ggmlBackendLoad(pathPtr.cast<ffi.Char>());
-              if (result.address != 0) {
-                // ignore: avoid_print
-                print('[llm_llamacpp] Successfully loaded: $filename');
-                loadedCount++;
-              } else {
-                // GPU backends may legitimately fail at runtime (e.g. Vulkan
-                // driver missing or unsupported on this device). That's not
-                // fatal; the CPU backend will continue to work.
-                // ignore: avoid_print
-                print(
-                  '[llm_llamacpp] Failed to load: $filename (returned null)',
-                );
-              }
-            } finally {
-              calloc.free(pathPtr);
-            }
-          }
+        final filename = entity.uri.pathSegments.last;
+        if (!filename.startsWith('libggml-') || !filename.endsWith('.so')) {
+          continue;
         }
+        if (filename == 'libggml-base.so') continue;
+        if (filename.startsWith('libggml-cpu')) {
+          cpuBackends.add(entity);
+        } else {
+          load(filename, entity.path);
+        }
+      }
+
+      // Only one CPU variant may be registered; prefer the most specific one.
+      cpuBackends.sort(
+        (a, b) => b.uri.pathSegments.last.compareTo(a.uri.pathSegments.last),
+      );
+      for (final entity in cpuBackends) {
+        if (load(entity.uri.pathSegments.last, entity.path)) break;
       }
     } catch (e) {
       // ignore: avoid_print
@@ -375,7 +393,7 @@ class BackendInitializer {
     }
 
     // ignore: avoid_print
-    print('[llm_llamacpp] Manually loaded $loadedCount CPU backend(s)');
+    print('[llm_llamacpp] Manually loaded $loadedCount backend(s)');
     return loadedCount > 0;
   }
 }
