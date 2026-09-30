@@ -46,6 +46,13 @@ jobs:
           which javac
           javac -version
 
+      - name: fetch llama.cpp sources
+        run: |
+          git clone --filter=blob:none --quiet https://github.com/ggml-org/llama.cpp \
+            third_party/llm_llamacpp/llamacpp
+          git -C third_party/llm_llamacpp/llamacpp checkout --quiet \
+            1692f9e50bb20fd96b963af38a282daf78feea64
+
       - name: flutter pub get
         run: flutter pub get
 

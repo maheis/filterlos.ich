@@ -201,7 +201,7 @@ Future<void> main(List<String> args) async {
         .existsSync();
     final forceSource =
         Platform.environment['LLM_LLAMACPP_FORCE_SOURCE'] == '1' ||
-        (targetOS == OS.linux && hasSources);
+        ((targetOS == OS.linux || targetOS == OS.android) && hasSources);
     final prebuiltLibraries = forceSource
         ? null
         : await _tryDownloadPrebuilt(
@@ -1224,8 +1224,10 @@ Future<List<Uri>?> _buildFromSource(
       '-DGGML_NATIVE=OFF',
       '-DGGML_LLAMAFILE=OFF',
       '-DGGML_BACKEND_DL=ON',
-      '-DGGML_CPU_ALL_VARIANTS=${_androidCpuAllVariantsEnabled(abi) ? 'ON' : 'OFF'}',
-      '-DGGML_CPU_KLEIDIAI=${abi == 'arm64-v8a' ? 'ON' : 'OFF'}',
+      // Patched: the multi-variant CPU backends produced wrong results on
+      // arm64 devices, so build a single plain CPU backend instead.
+      '-DGGML_CPU_ALL_VARIANTS=OFF',
+      '-DGGML_CPU_KLEIDIAI=OFF',
       '-DGGML_OPENMP=${_androidOpenMpRequired(abi) ? 'ON' : 'OFF'}',
     ]);
 
