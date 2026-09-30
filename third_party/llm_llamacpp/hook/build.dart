@@ -195,15 +195,24 @@ Future<void> main(List<String> args) async {
       output.dependencies.add(input.packageRoot.resolve(relative));
     }
 
-    final prebuiltLibraries = await _tryDownloadPrebuilt(
-      targetOS,
-      targetArch,
-      libraryName,
-      input,
-      logger,
-      abiFingerprint,
-      nativeBinaryVersion,
-    );
+    // Patched: the published Linux prebuilt hard-requires the CUDA runtime, so
+    // build from the vendored sources instead whenever they are available.
+    final hasSources = Directory.fromUri(input.packageRoot.resolve('llamacpp/'))
+        .existsSync();
+    final forceSource =
+        Platform.environment['LLM_LLAMACPP_FORCE_SOURCE'] == '1' ||
+        (targetOS == OS.linux && hasSources);
+    final prebuiltLibraries = forceSource
+        ? null
+        : await _tryDownloadPrebuilt(
+            targetOS,
+            targetArch,
+            libraryName,
+            input,
+            logger,
+            abiFingerprint,
+            nativeBinaryVersion,
+          );
 
     if (prebuiltLibraries != null) {
       logger.info('Using ${prebuiltLibraries.length} prebuilt native asset(s)');
@@ -1250,12 +1259,14 @@ Future<List<Uri>?> _buildFromSource(
   }
 
   logger.info('Building...');
+  // Patched: one C++ job per core exhausts memory on small developer machines.
+  final jobs = (Platform.numberOfProcessors / 4).ceil().clamp(1, 4);
   result = await Process.run('cmake', [
     '--build',
     buildDir.path,
     '--config',
     'Release',
-    '-j${Platform.numberOfProcessors}',
+    '-j$jobs',
   ]);
 
   if (result.exitCode != 0) {

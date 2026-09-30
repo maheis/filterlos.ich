@@ -33,6 +33,9 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Locally cloned llama.cpp sources for the CUDA-free Linux build
+/third_party/llm_llamacpp/llamacpp/
+
 # Symbolication related
 app.*.symbols
 
