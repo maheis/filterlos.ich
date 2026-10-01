@@ -23,6 +23,7 @@ class AppController extends ChangeNotifier {
   bool timelineUnlocked = false;
   int _failedPinAttempts = 0;
   DateTime? _pinLockedUntil;
+  List<JournalChat> chats = const [];
 
   bool get hasTimelinePin => _hasTimelinePin;
   bool _hasTimelinePin = false;
@@ -41,6 +42,15 @@ class AppController extends ChangeNotifier {
               )
               .toList()
         : <JournalEntry>[];
+    final storedChats = state['chats'];
+    chats = storedChats is List
+        ? storedChats
+              .whereType<Map>()
+              .map(
+                (item) => JournalChat.fromJson(Map<String, dynamic>.from(item)),
+              )
+              .toList()
+        : <JournalChat>[];
     settings = FilterlosSettings.fromJson(
       state['settings'] is Map
           ? Map<String, dynamic>.from(state['settings'] as Map)
@@ -48,6 +58,7 @@ class AppController extends ChangeNotifier {
     );
     _hasTimelinePin = await _store.hasPin;
     _sortEntries();
+    _sortChats();
     isLoaded = true;
     notifyListeners();
   }
@@ -67,6 +78,35 @@ class AppController extends ChangeNotifier {
 
   Future<void> deleteEntry(String id) async {
     entries = entries.where((entry) => entry.id != id).toList();
+    await _persist();
+    notifyListeners();
+  }
+
+  Future<JournalChat> createChat({JournalEntry? contextEntry}) async {
+    final now = DateTime.now();
+    final chat = JournalChat(
+      id: 'chat-${now.microsecondsSinceEpoch}',
+      createdAt: now,
+      updatedAt: now,
+      contextEntryId: contextEntry?.id,
+      messages: const [],
+    );
+    chats = [chat, ...chats];
+    await _persist();
+    notifyListeners();
+    return chat;
+  }
+
+  Future<void> addChatMessage(String chatId, ChatMessage message) async {
+    final index = chats.indexWhere((chat) => chat.id == chatId);
+    if (index < 0) return;
+    final chat = chats[index];
+    chats = [...chats]
+      ..[index] = chat.copyWith(
+        updatedAt: message.createdAt,
+        messages: [...chat.messages, message],
+      );
+    _sortChats();
     await _persist();
     notifyListeners();
   }
@@ -146,6 +186,31 @@ class AppController extends ChangeNotifier {
         question,
         relevant,
         settings.userMemorySummary,
+      ),
+      maxTokens: 360,
+    );
+  }
+
+  Future<String> chatReply(
+    String question, {
+    JournalEntry? contextEntry,
+    List<ChatMessage> history = const [],
+  }) async {
+    final relevantEntries = contextEntry == null
+        ? await findRelevantEntriesFor(question)
+        : [contextEntry];
+    return _localAi.generate(
+      modelPath: _requireLocalModel(),
+      systemPrompt:
+          'Du bist fi, ein empathischer, nicht-belehrender lokaler Begleiter. '
+          'Antworte nur auf Grundlage des Gesprächskontexts und des Tagebuchs. '
+          'Stelle keine Diagnosen und erfinde keine Fakten.',
+      userPrompt: buildChatPrompt(
+        question,
+        contextEntry: contextEntry,
+        relevantEntries: relevantEntries,
+        history: history,
+        memory: settings.userMemorySummary,
       ),
       maxTokens: 360,
     );
@@ -291,12 +356,17 @@ class AppController extends ChangeNotifier {
   Future<void> _persist() {
     return _store.saveState({
       'entries': entries.map((entry) => entry.toJson()).toList(),
+      'chats': chats.map((chat) => chat.toJson()).toList(),
       'settings': settings.toJson(),
     });
   }
 
   void _sortEntries() {
     entries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  }
+
+  void _sortChats() {
+    chats.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
   }
 
   @override

@@ -202,6 +202,37 @@ Ausgewählte Einträge:
 $context''';
 }
 
+String buildChatPrompt(
+  String question, {
+  JournalEntry? contextEntry,
+  required List<JournalEntry> relevantEntries,
+  required List<ChatMessage> history,
+  required String memory,
+}) {
+  final conversation = history
+      .map((message) => '${message.isUser ? 'Nutzer' : 'fi'}: ${message.text}')
+      .join('\n');
+  final entryContext = contextEntry == null
+      ? relevantEntries
+            .map(
+              (entry) =>
+                  '[${formatEntryDate(entry.createdAt)} · ${entry.category.name}] ${entry.text}',
+            )
+            .join('\n')
+      : '[${contextEntry.category.name} · ${formatEntryDate(contextEntry.createdAt)}]\n${contextEntry.text}';
+  return '''Führe ein kurzes, respektvolles Gespräch über private Gedanken. Antworte auf Deutsch, erfinde keine Fakten und stelle keine Diagnosen.
+Nutzerhinweise: ${memory.trim().isEmpty ? 'keine' : memory}
+
+Ausgangseintrag:
+$entryContext
+
+Bisheriger Gesprächsverlauf:
+${conversation.isEmpty ? 'Noch kein Verlauf.' : conversation}
+
+Neue Frage oder Aussage des Nutzers:
+$question''';
+}
+
 String buildMemoryUpdatePrompt(
   List<JournalEntry> entries,
   String currentMemory,

@@ -159,6 +159,80 @@ class JournalAttachment {
   }
 }
 
+class ChatMessage {
+  const ChatMessage({
+    required this.text,
+    required this.isUser,
+    required this.createdAt,
+  });
+
+  final String text;
+  final bool isUser;
+  final DateTime createdAt;
+
+  Map<String, dynamic> toJson() => {
+    'text': text,
+    'isUser': isUser,
+    'createdAt': createdAt.toIso8601String(),
+  };
+
+  factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
+    text: (json['text'] ?? '').toString(),
+    isUser: json['isUser'] as bool? ?? false,
+    createdAt:
+        DateTime.tryParse((json['createdAt'] ?? '').toString()) ??
+        DateTime.now(),
+  );
+}
+
+class JournalChat {
+  const JournalChat({
+    required this.id,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.messages,
+    this.contextEntryId,
+  });
+
+  final String id;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final String? contextEntryId;
+  final List<ChatMessage> messages;
+
+  JournalChat copyWith({DateTime? updatedAt, List<ChatMessage>? messages}) =>
+      JournalChat(
+        id: id,
+        createdAt: createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+        contextEntryId: contextEntryId,
+        messages: messages ?? this.messages,
+      );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'createdAt': createdAt.toIso8601String(),
+    'updatedAt': updatedAt.toIso8601String(),
+    if (contextEntryId != null) 'contextEntryId': contextEntryId,
+    'messages': messages.map((message) => message.toJson()).toList(),
+  };
+
+  factory JournalChat.fromJson(Map<String, dynamic> json) => JournalChat(
+    id: (json['id'] ?? '').toString(),
+    createdAt:
+        DateTime.tryParse((json['createdAt'] ?? '').toString()) ??
+        DateTime.now(),
+    updatedAt:
+        DateTime.tryParse((json['updatedAt'] ?? '').toString()) ??
+        DateTime.now(),
+    contextEntryId: json['contextEntryId'] as String?,
+    messages: (json['messages'] as List<dynamic>? ?? const [])
+        .whereType<Map>()
+        .map((item) => ChatMessage.fromJson(Map<String, dynamic>.from(item)))
+        .toList(),
+  );
+}
+
 String formatEntryDate(DateTime date) =>
     DateFormat('dd.MM.yyyy · HH:mm', 'de_DE').format(date);
 

@@ -2,11 +2,19 @@ import 'package:flutter/material.dart';
 
 import '../ai_progress_view.dart';
 import '../app_controller.dart';
+import '../models.dart';
 
 class LocalAssistantPage extends StatefulWidget {
-  const LocalAssistantPage({super.key, required this.controller});
+  const LocalAssistantPage({
+    super.key,
+    required this.controller,
+    this.contextEntry,
+    this.existingChat,
+  });
 
   final AppController controller;
+  final JournalEntry? contextEntry;
+  final JournalChat? existingChat;
 
   @override
   State<LocalAssistantPage> createState() => _LocalAssistantPageState();
@@ -14,31 +22,84 @@ class LocalAssistantPage extends StatefulWidget {
 
 class _LocalAssistantPageState extends State<LocalAssistantPage> {
   final _questionController = TextEditingController();
-  final List<_ChatLine> _lines = [];
+  final List<ChatMessage> _lines = [];
+  late final JournalEntry? _contextEntry;
+  String? _chatId;
   bool _working = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _contextEntry = widget.contextEntry ?? _entryForChat(widget.existingChat);
+    _chatId = widget.existingChat?.id;
+    if (widget.existingChat != null) {
+      _lines.addAll(widget.existingChat!.messages);
+    }
+  }
+
+  JournalEntry? _entryForChat(JournalChat? chat) {
+    final entryId = chat?.contextEntryId;
+    if (entryId == null) return null;
+    for (final entry in widget.controller.entries) {
+      if (entry.id == entryId) return entry;
+    }
+    return null;
+  }
+
+  Future<String> _ensureChat() async {
+    final current = _chatId;
+    if (current != null) return current;
+    final chat = await widget.controller.createChat(
+      contextEntry: _contextEntry,
+    );
+    _chatId = chat.id;
+    return chat.id;
+  }
+
+  Future<void> _saveMessage(ChatMessage message) async {
+    await widget.controller.addChatMessage(await _ensureChat(), message);
+  }
 
   Future<void> _ask() async {
     final question = _questionController.text.trim();
     if (question.isEmpty || _working) return;
+    final history = List<ChatMessage>.from(_lines);
+    final userMessage = ChatMessage(
+      text: question,
+      isUser: true,
+      createdAt: DateTime.now(),
+    );
     setState(() {
-      _lines.add(_ChatLine(text: question, isUser: true));
+      _lines.add(userMessage);
       _questionController.clear();
       _working = true;
     });
+    await _saveMessage(userMessage);
     try {
-      final answer = await widget.controller.askDiary(question);
+      final answer = await widget.controller.chatReply(
+        question,
+        contextEntry: _contextEntry,
+        history: history,
+      );
       if (!mounted) return;
-      setState(() => _lines.add(_ChatLine(text: answer, isUser: false)));
+      final answerMessage = ChatMessage(
+        text: answer,
+        isUser: false,
+        createdAt: DateTime.now(),
+      );
+      await _saveMessage(answerMessage);
+      if (mounted) setState(() => _lines.add(answerMessage));
     } catch (error) {
       if (!mounted) return;
+      final errorMessage = ChatMessage(
+        text: error.toString().replaceFirst('Bad state: ', ''),
+        isUser: false,
+        createdAt: DateTime.now(),
+      );
       setState(() {
-        _lines.add(
-          _ChatLine(
-            text: error.toString().replaceFirst('Bad state: ', ''),
-            isUser: false,
-          ),
-        );
+        _lines.add(errorMessage);
       });
+      await _saveMessage(errorMessage);
     } finally {
       if (mounted) setState(() => _working = false);
     }
@@ -50,17 +111,24 @@ class _LocalAssistantPageState extends State<LocalAssistantPage> {
     try {
       final recap = await widget.controller.dailyRecap();
       if (!mounted) return;
-      setState(() => _lines.add(_ChatLine(text: recap, isUser: false)));
+      final recapMessage = ChatMessage(
+        text: recap,
+        isUser: false,
+        createdAt: DateTime.now(),
+      );
+      await _saveMessage(recapMessage);
+      if (mounted) setState(() => _lines.add(recapMessage));
     } catch (error) {
       if (!mounted) return;
+      final errorMessage = ChatMessage(
+        text: error.toString().replaceFirst('Bad state: ', ''),
+        isUser: false,
+        createdAt: DateTime.now(),
+      );
       setState(() {
-        _lines.add(
-          _ChatLine(
-            text: error.toString().replaceFirst('Bad state: ', ''),
-            isUser: false,
-          ),
-        );
+        _lines.add(errorMessage);
       });
+      await _saveMessage(errorMessage);
     } finally {
       if (mounted) setState(() => _working = false);
     }
@@ -70,7 +138,11 @@ class _LocalAssistantPageState extends State<LocalAssistantPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('fi · lokal'),
+        title: Text(
+          _contextEntry == null
+              ? 'fi · lokal'
+              : 'fi · ${_contextEntry.category.name}',
+        ),
         actions: [
           IconButton(
             tooltip: 'Tagesrückblick erstellen',
@@ -92,8 +164,9 @@ class _LocalAssistantPageState extends State<LocalAssistantPage> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: Text(
-                'Antworten werden mit deinem ausgewählten Modell lokal erzeugt. '
-                'Für Tagebuchfragen nutzt fi passende Einträge aus der verschlüsselten Timeline.',
+                _contextEntry == null
+                    ? 'Antworten werden mit deinem ausgewählten Modell lokal erzeugt. Für Tagebuchfragen nutzt fi passende Einträge aus der verschlüsselten Timeline.'
+                    : 'Dieser Chat bezieht sich auf den ausgewählten Tagebucheintrag und wird verschlüsselt in deiner Timeline gespeichert.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
@@ -184,11 +257,4 @@ class _LocalAssistantPageState extends State<LocalAssistantPage> {
     _questionController.dispose();
     super.dispose();
   }
-}
-
-class _ChatLine {
-  const _ChatLine({required this.text, required this.isUser});
-
-  final String text;
-  final bool isUser;
 }

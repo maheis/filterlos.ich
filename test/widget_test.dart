@@ -136,6 +136,35 @@ void main() {
     expect((store.state['entries'] as List<dynamic>), isEmpty);
   });
 
+  test('chat sessions persist with their messages and entry context', () async {
+    final store = _MemoryJournalStore();
+    final controller = AppController(store);
+    await controller.load();
+    final entry = JournalEntry(
+      id: 'entry-chat-context',
+      categoryId: 'thought',
+      createdAt: DateTime(2026, 9, 26),
+      text: 'context thought',
+    );
+    await controller.addEntry(entry);
+
+    final chat = await controller.createChat(contextEntry: entry);
+    await controller.addChatMessage(
+      chat.id,
+      ChatMessage(
+        text: 'Hallo fi',
+        isUser: true,
+        createdAt: DateTime(2026, 9, 26, 12),
+      ),
+    );
+
+    final restored = AppController(store);
+    await restored.load();
+    expect(restored.chats, hasLength(1));
+    expect(restored.chats.single.contextEntryId, entry.id);
+    expect(restored.chats.single.messages.single.text, 'Hallo fi');
+  });
+
   test(
     'timeline entries group by local calendar day in newest-first order',
     () {
@@ -378,6 +407,7 @@ class _MemorySecretStore implements SecretStore {
 class _MemoryJournalStore implements JournalStore {
   Map<String, dynamic> state = <String, dynamic>{
     'entries': <dynamic>[],
+    'chats': <dynamic>[],
     'settings': null,
   };
   bool _hasPin = false;

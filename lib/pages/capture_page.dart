@@ -12,6 +12,7 @@ import 'package:speech_to_text/speech_to_text.dart';
 import '../app_controller.dart';
 import '../category_icon.dart';
 import '../models.dart';
+import 'local_assistant_page.dart';
 
 class CapturePage extends StatefulWidget {
   const CapturePage({
@@ -248,6 +249,54 @@ class _CapturePageState extends State<CapturePage> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Future<void> _startChat() async {
+    if (!widget.controller.hasTimelinePin) {
+      _showMessage('Richte zuerst in der Timeline eine PIN ein.');
+      return;
+    }
+    final pinController = TextEditingController();
+    final pin = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Chat entsperren'),
+        content: TextField(
+          controller: pinController,
+          autofocus: true,
+          obscureText: true,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'App-PIN',
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (value) => Navigator.of(dialogContext).pop(value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(pinController.text),
+            child: const Text('Öffnen'),
+          ),
+        ],
+      ),
+    );
+    pinController.dispose();
+    if (!mounted || pin == null) return;
+    if (!await widget.controller.unlockWithPin(pin)) {
+      _showMessage('PIN falsch oder Zugriff kurzzeitig gesperrt.');
+      return;
+    }
+    if (!mounted) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => LocalAssistantPage(controller: widget.controller),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final category = widget.category;
@@ -265,6 +314,13 @@ class _CapturePageState extends State<CapturePage> {
             Flexible(child: Text(category.name)),
           ],
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Chat mit fi öffnen',
+            onPressed: _startChat,
+            icon: const Icon(Icons.auto_awesome_outlined),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Center(

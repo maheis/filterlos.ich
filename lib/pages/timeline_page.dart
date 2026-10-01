@@ -186,11 +186,41 @@ class _TimelinePageState extends State<TimelinePage>
       return _buildLockedView(context);
     }
     final entries = widget.controller.entriesFor(categoryId: _categoryId);
-    final groupedEntries = groupEntriesByDay(entries);
+    final visibleChats = _categoryId == null
+        ? widget.controller.chats
+        : widget.controller.chats.where((chat) {
+            final entryId = chat.contextEntryId;
+            return entryId != null &&
+                widget.controller.entries.any(
+                  (entry) =>
+                      entry.id == entryId && entry.categoryId == _categoryId,
+                );
+          }).toList();
+    final timelineItems = [
+      ...entries.map(_TimelineItem.entry),
+      ...visibleChats.map(_TimelineItem.chat),
+    ]..sort((a, b) => b.date.compareTo(a.date));
     final timelineRows = <_TimelineRow>[];
-    for (final group in groupedEntries.entries) {
-      timelineRows.add(_TimelineRow.header(group.key, group.value.length));
-      timelineRows.addAll(group.value.map(_TimelineRow.entry));
+    DateTime? currentDay;
+    for (final item in timelineItems) {
+      final day = DateTime(item.date.year, item.date.month, item.date.day);
+      if (currentDay != day) {
+        currentDay = day;
+        final count = timelineItems
+            .where(
+              (other) =>
+                  other.date.year == day.year &&
+                  other.date.month == day.month &&
+                  other.date.day == day.day,
+            )
+            .length;
+        timelineRows.add(_TimelineRow.header(day, count));
+      }
+      timelineRows.add(
+        item.entry != null
+            ? _TimelineRow.entry(item.entry!)
+            : _TimelineRow.chat(item.chat!),
+      );
     }
     return Scaffold(
       appBar: AppBar(
@@ -269,7 +299,7 @@ class _TimelinePageState extends State<TimelinePage>
               ),
             ),
             Expanded(
-              child: entries.isEmpty
+              child: timelineItems.isEmpty
                   ? const Center(
                       child: Text('Noch keine Gedanken in dieser Timeline.'),
                     )
@@ -284,6 +314,19 @@ class _TimelinePageState extends State<TimelinePage>
                             entryCount: row.entryCount,
                           );
                         }
+                        if (row.chat != null) {
+                          return _ChatCard(
+                            chat: row.chat!,
+                            onOpen: () => Navigator.of(context).push<void>(
+                              MaterialPageRoute<void>(
+                                builder: (_) => LocalAssistantPage(
+                                  controller: widget.controller,
+                                  existingChat: row.chat,
+                                ),
+                              ),
+                            ),
+                          );
+                        }
                         final entry = row.entry!;
                         return _EntryCard(
                           entry: entry,
@@ -292,9 +335,13 @@ class _TimelinePageState extends State<TimelinePage>
                           onCompanion:
                               widget.controller.settings.localModelPath.isEmpty
                               ? null
-                              : () => _showAiResult(
-                                  'fi · ${entry.category.name}',
-                                  () => widget.controller.companionReply(entry),
+                              : () => Navigator.of(context).push<void>(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => LocalAssistantPage(
+                                      controller: widget.controller,
+                                      contextEntry: entry,
+                                    ),
+                                  ),
                                 ),
                         );
                       },
@@ -414,12 +461,34 @@ class _TimelinePageState extends State<TimelinePage>
 }
 
 class _TimelineRow {
-  const _TimelineRow.header(this.day, this.entryCount) : entry = null;
-  const _TimelineRow.entry(this.entry) : day = null, entryCount = 0;
+  const _TimelineRow.header(this.day, this.entryCount)
+    : entry = null,
+      chat = null;
+  const _TimelineRow.entry(this.entry)
+    : day = null,
+      entryCount = 0,
+      chat = null;
+  const _TimelineRow.chat(this.chat) : day = null, entryCount = 0, entry = null;
 
   final DateTime? day;
   final int entryCount;
   final JournalEntry? entry;
+  final JournalChat? chat;
+}
+
+class _TimelineItem {
+  _TimelineItem.entry(JournalEntry value)
+    : chat = null,
+      entry = value,
+      date = value.createdAt;
+  _TimelineItem.chat(JournalChat value)
+    : entry = null,
+      chat = value,
+      date = value.updatedAt;
+
+  final JournalEntry? entry;
+  final JournalChat? chat;
+  final DateTime date;
 }
 
 class _TimelineDayHeader extends StatelessWidget {
@@ -466,12 +535,38 @@ class _TimelineDayHeader extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Text(
-            '$entryCount ${entryCount == 1 ? 'Eintrag' : 'Einträge'}',
+            '$entryCount ${entryCount == 1 ? 'Aktivität' : 'Aktivitäten'}',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ChatCard extends StatelessWidget {
+  const _ChatCard({required this.chat, required this.onOpen});
+
+  final JournalChat chat;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final lastMessage = chat.messages.isEmpty ? null : chat.messages.last;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListTile(
+        leading: const Icon(Icons.auto_awesome_outlined),
+        title: const Text('Chat mit fi'),
+        subtitle: Text(
+          lastMessage?.text ?? 'Noch keine Nachricht',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: onOpen,
       ),
     );
   }

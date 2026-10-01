@@ -28,7 +28,7 @@
 - [ ] Für maximale DSGVO-Konformität: Mistral AI API (Server in der EU, beste deutsche Sprachbeherrschung).
 - [ ] fi redet über den nutzer in der dritten person
   - [ ] diese aussagen sollen für eine antwort genutzt werden!
-- [ ] chat soll auch in den tagesverlauf eingeglieder werden
-- [ ] fi aufruf auf einem eintrag soll einen chat öffnen und den eintrag als basis hernehmen
-- [ ] chat direkt aus der eingabe starten (pin abfrage)
+- [x] chat soll auch in den tagesverlauf eingeglieder werden
+- [x] fi aufruf auf einem eintrag soll einen chat öffnen und den eintrag als basis hernehmen
+- [x] chat direkt aus der eingabe starten (pin abfrage)
 - [x] default rot als akktzentcolor
