@@ -37,7 +37,7 @@ class FilterlosSettings {
     fontFamily: 'Ubuntu',
     textScaleFactor: 1,
     useLightTheme: false,
-    accentColorValue: 0xFF8FDCBE,
+    accentColorValue: 0xFFE57373,
     highlightColorValue: 0xFFFFB74D,
     stealthMode: false,
     emojiButtons: true,

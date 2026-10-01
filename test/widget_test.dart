@@ -177,6 +177,10 @@ void main() {
     expect(lightTheme.snackBarTheme.contentTextStyle?.color, Colors.white);
   });
 
+  test('default accent color is red', () {
+    expect(FilterlosSettings.defaults.accentColorValue, 0xFFE57373);
+  });
+
   test('stealth theme ignores configured accent and highlight colors', () {
     final settings = FilterlosSettings.defaults.copyWith(
       accentColorValue: 0xFFE57373,

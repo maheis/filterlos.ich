@@ -1,6 +1,6 @@
 # ToDo
 
-- [ ] jks pw speichern
+- [x] jks pw speichern
 - [x] emojis mittig auf den buttons
 - [x] keinen text auf den buttons
 - [x] emojis als text-emojis
@@ -12,7 +12,6 @@
   - [x] gelb: geistesblitz
   - [x] lila: chaos
 - [x] llm opensource download anbieten?
-- [ ] audio transskript später
 - [x] toast dark
 - [x] timeline als versionsgraph Datum/tag
 - [x] iconfarbe im stealth neutral
@@ -24,5 +23,12 @@
 - [x] "offline diktieren" -> diktieren
 - [x] "Audio aufnhemen" -> sprachnotizen
 - [x] diktieren button rauf in die reihe mit bild und sprachnotiz
+- [ ] audio transskript später
 - [ ] Für maximale Geschwindigkeit: Groq API mit Llama 3.2 (Antworten erscheinen quasi ohne Verzögerung).
 - [ ] Für maximale DSGVO-Konformität: Mistral AI API (Server in der EU, beste deutsche Sprachbeherrschung).
+- [ ] fi redet über den nutzer in der dritten person
+  - [ ] diese aussagen sollen für eine antwort genutzt werden!
+- [ ] chat soll auch in den tagesverlauf eingeglieder werden
+- [ ] fi aufruf auf einem eintrag soll einen chat öffnen und den eintrag als basis hernehmen
+- [ ] chat direkt aus der eingabe starten (pin abfrage)
+- [x] default rot als akktzentcolor
