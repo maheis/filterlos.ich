@@ -9,6 +9,7 @@ import 'package:filterlos_ich/category_icon.dart';
 import 'package:filterlos_ich/models.dart';
 import 'package:filterlos_ich/pages/settings_page.dart';
 import 'package:filterlos_ich/services/encrypted_journal_store.dart';
+import 'package:filterlos_ich/services/local_ai_service.dart';
 import 'package:filterlos_ich/ui_settings.dart';
 
 void main() {
@@ -163,6 +164,28 @@ void main() {
     expect(restored.chats, hasLength(1));
     expect(restored.chats.single.contextEntryId, entry.id);
     expect(restored.chats.single.messages.single.text, 'Hallo fi');
+  });
+
+  test('companion and chat prompts handle third-person self-reference', () {
+    final entry = JournalEntry(
+      id: 'entry-third-person',
+      categoryId: 'thought',
+      createdAt: DateTime(2026, 9, 26),
+      text: 'Er fühlt sich gerade überfordert.',
+    );
+    const guidance =
+        'Der Nutzer kann über sich selbst in der dritten Person schreiben.';
+
+    expect(buildCompanionPrompt(entry, ''), contains(guidance));
+    expect(
+      buildChatPrompt(
+        'Er fühlt sich gerade überfordert.',
+        relevantEntries: const [],
+        history: const [],
+        memory: '',
+      ),
+      contains(guidance),
+    );
   });
 
   test(

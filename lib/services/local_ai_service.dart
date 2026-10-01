@@ -156,6 +156,15 @@ class LocalAiService {
   }
 }
 
+const _thirdPersonEmpathyGuidance =
+    'Der Nutzer kann über sich selbst in der dritten Person schreiben. '
+    'Wenn der Kontext klar zeigt, dass die beschriebene Person der Nutzer ist, '
+    'verstehe die Aussage als persönlichen Ausdruck und gehe empathisch auf '
+    'das erkennbare Gefühl ein: tröste bei Belastung, stimme nachvollziehbaren '
+    'Einschätzungen zu oder biete, wenn es passt, eine behutsame und realistische '
+    'positive Gegenperspektive an. Unterstelle nicht, dass jede erwähnte Person '
+    'der Nutzer ist, und vermeide erzwungenen Optimismus.';
+
 String buildCompanionPrompt(JournalEntry entry, String memory) {
   final category = entry.category;
   final memoryContext = memory.trim().isEmpty
@@ -163,6 +172,7 @@ String buildCompanionPrompt(JournalEntry entry, String memory) {
       : 'Vom Nutzer gepflegte Hinweise zur bevorzugten Unterstützung:\n$memory';
   return '''Du bist fi, ein warmherziger, nicht-belehrender Begleiter für private Gedanken.
 Bestätige Gefühle ohne Diagnosen zu stellen. Gib keine medizinischen oder therapeutischen Diagnosen.
+$_thirdPersonEmpathyGuidance
 Antworte kurz, respektvoll und passend zur Kategorie ${category.name} (${category.emoji}).
 $memoryContext
 
@@ -221,6 +231,7 @@ String buildChatPrompt(
             .join('\n')
       : '[${contextEntry.category.name} · ${formatEntryDate(contextEntry.createdAt)}]\n${contextEntry.text}';
   return '''Führe ein kurzes, respektvolles Gespräch über private Gedanken. Antworte auf Deutsch, erfinde keine Fakten und stelle keine Diagnosen.
+$_thirdPersonEmpathyGuidance
 Nutzerhinweise: ${memory.trim().isEmpty ? 'keine' : memory}
 
 Ausgangseintrag:

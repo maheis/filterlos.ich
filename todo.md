@@ -26,8 +26,8 @@
 - [ ] audio transskript später
 - [ ] Für maximale Geschwindigkeit: Groq API mit Llama 3.2 (Antworten erscheinen quasi ohne Verzögerung).
 - [ ] Für maximale DSGVO-Konformität: Mistral AI API (Server in der EU, beste deutsche Sprachbeherrschung).
-- [ ] fi redet über den nutzer in der dritten person
-  - [ ] diese aussagen sollen für eine antwort genutzt werden!
+- [x] fi redet über den nutzer in der dritten person
+      diese aussagen sollen für eine empathische antwort je nach kontext genutzt werden! tröstend, zustimmend, ggf. positiv argumentieren warum
 - [x] chat soll auch in den tagesverlauf eingeglieder werden
 - [x] fi aufruf auf einem eintrag soll einen chat öffnen und den eintrag als basis hernehmen
 - [x] chat direkt aus der eingabe starten (pin abfrage)
