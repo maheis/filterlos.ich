@@ -35,3 +35,6 @@
 - [x] export tageweise als txt mit pro tag eine datei im namensformat YYMMDD.txt in ein Zip das die app-pin als schutz hat!
 - [x] antwort von der ki fühlt sich noch komisch an... kann aber grade nicht sagen was, aber künstlich!
       das muss die emeotion vom anwender spüren und prüfen ob er grade gut zureden braucht, oder z.b. auch zustimmen und mit schimpfen!
+- [x] "was fi über deine vorlieben wissen soll" muss auch pin geschüttz sein!
+- [x] demo modus um anderen zu zeigen wie die app funktioniert, ohne die timeline offen legen zu müssen!
+- [ ] tage exportieren, muss nicht immer alles sein und eine auswahl des zeitraums ermöglichen

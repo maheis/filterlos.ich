@@ -9,6 +9,7 @@ import 'package:filterlos_ich/app_controller.dart';
 import 'package:filterlos_ich/category_icon.dart';
 import 'package:filterlos_ich/models.dart';
 import 'package:filterlos_ich/pages/settings_page.dart';
+import 'package:filterlos_ich/pages/demo_page.dart';
 import 'package:filterlos_ich/services/encrypted_journal_store.dart';
 import 'package:filterlos_ich/services/daily_text_export_service.dart';
 import 'package:filterlos_ich/services/local_ai_service.dart';
@@ -337,6 +338,104 @@ void main() {
       picture.colorFilter,
       const ColorFilter.mode(Color(0xFF777777), BlendMode.srcIn),
     );
+  });
+
+  testWidgets('user memory requires the app PIN before it is shown', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final controller = AppController(_MemoryJournalStore());
+    await controller.load();
+    await controller.updateSettings(
+      controller.settings.copyWith(userMemorySummary: 'Persönlicher Hinweis'),
+    );
+    await controller.configurePin('482916');
+    await tester.pumpWidget(
+      MaterialApp(home: SettingsPage(controller: controller)),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final unlockButton = find.byKey(
+      const ValueKey('unlock-user-memory-button'),
+    );
+    await tester.ensureVisible(unlockButton);
+    expect(
+      find.byKey(const ValueKey('user-memory-summary-input')),
+      findsNothing,
+    );
+    expect(find.text('Persönlicher Hinweis'), findsNothing);
+
+    await tester.tap(unlockButton);
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.enterText(
+      find.byKey(const ValueKey('memory-pin-input')),
+      '000000',
+    );
+    await tester.tap(find.byKey(const ValueKey('confirm-memory-pin')));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(
+      find.byKey(const ValueKey('user-memory-summary-input')),
+      findsNothing,
+    );
+
+    await tester.ensureVisible(unlockButton);
+    await tester.tap(unlockButton);
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.enterText(
+      find.byKey(const ValueKey('memory-pin-input')),
+      '482916',
+    );
+    await tester.tap(find.byKey(const ValueKey('confirm-memory-pin')));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final memoryField = tester.widget<TextField>(
+      find.byKey(const ValueKey('user-memory-summary-input')),
+    );
+    expect(memoryField.controller?.text, 'Persönlicher Hinweis');
+    expect(controller.timelineUnlocked, isFalse);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(
+      find.byKey(const ValueKey('user-memory-summary-input')),
+      findsNothing,
+    );
+    expect(controller.settings.userMemorySummary, 'Persönlicher Hinweis');
+  });
+
+  testWidgets('demo page never shows real timeline entries', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final controller = AppController(_MemoryJournalStore());
+    await controller.load();
+    await controller.addEntry(
+      JournalEntry(
+        id: 'private-demo-marker',
+        categoryId: 'thought',
+        createdAt: DateTime(2026, 10, 8),
+        text: 'PRIVATE_REAL_TIMELINE_MARKER',
+      ),
+    );
+    await tester.pumpWidget(FilterlosApp(controller: controller));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final demoButton = find.byKey(const ValueKey('open-demo-button'));
+    await tester.ensureVisible(demoButton);
+    await tester.tap(demoButton);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DemoPage), findsOneWidget);
+    expect(find.text('Demo'), findsOneWidget);
+    expect(find.text('Beispieldaten'), findsOneWidget);
+    expect(
+      find.text('Das Gespräch war anstrengend. Ich darf darüber sauer sein.'),
+      findsOneWidget,
+    );
+    expect(find.text('PRIVATE_REAL_TIMELINE_MARKER'), findsNothing);
+    expect(controller.timelineUnlocked, isFalse);
   });
 
   testWidgets('app opens directly on the six emotion capture grid', (

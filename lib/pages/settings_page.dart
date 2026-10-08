@@ -22,23 +22,39 @@ class SettingsPage extends StatefulWidget {
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
-class _SettingsPageState extends State<SettingsPage> {
+class _SettingsPageState extends State<SettingsPage>
+    with WidgetsBindingObserver {
   late FilterlosSettings _draft = widget.controller.settings;
   final _memoryController = TextEditingController();
   final _modelDownloadService = LocalModelDownloadService();
   bool _copyingModel = false;
   bool _updatingMemory = false;
+  bool _memoryUnlocked = false;
   String? _downloadingModelId;
   int _downloadedModelBytes = 0;
 
   @override
   void initState() {
     super.initState();
-    _memoryController.text = widget.controller.settings.userMemorySummary;
+    WidgetsBinding.instance.addObserver(this);
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed && _memoryUnlocked) {
+      setState(() {
+        _memoryUnlocked = false;
+        _memoryController.clear();
+      });
+    }
+  }
+
+  String get _memoryValue => _memoryUnlocked
+      ? _memoryController.text.trim()
+      : _draft.userMemorySummary;
+
   Future<void> _saveSettings() async {
-    _draft = _draft.copyWith(userMemorySummary: _memoryController.text.trim());
+    _draft = _draft.copyWith(userMemorySummary: _memoryValue);
     await widget.controller.updateSettings(_draft);
     if (!mounted) return;
     ScaffoldMessenger.of(
@@ -181,7 +197,7 @@ class _SettingsPageState extends State<SettingsPage> {
       await widget.controller.restorePasswordBackup(backup, password);
       if (!mounted) return;
       _draft = widget.controller.settings;
-      _memoryController.text = _draft.userMemorySummary;
+      if (_memoryUnlocked) _memoryController.text = _draft.userMemorySummary;
       _showMessage('Backup wiederhergestellt.');
     } catch (error) {
       _showMessage(error.toString().replaceFirst('FormatException: ', ''));
@@ -222,6 +238,57 @@ class _SettingsPageState extends State<SettingsPage> {
     } catch (_) {
       _showMessage('Die PIN konnte nicht gespeichert werden.');
     }
+  }
+
+  Future<String?> _askTimelinePinForMemory() {
+    final pinController = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Vorlieben entsperren'),
+        content: TextField(
+          key: const ValueKey('memory-pin-input'),
+          controller: pinController,
+          autofocus: true,
+          obscureText: true,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'App-PIN'),
+          onSubmitted: (_) =>
+              Navigator.of(dialogContext).pop(pinController.text),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            key: const ValueKey('confirm-memory-pin'),
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(pinController.text),
+            child: const Text('Entsperren'),
+          ),
+        ],
+      ),
+    ).whenComplete(pinController.dispose);
+  }
+
+  Future<void> _unlockMemory() async {
+    if (!widget.controller.hasTimelinePin) {
+      await _managePin();
+      if (!mounted || !widget.controller.hasTimelinePin) return;
+      _memoryController.text = widget.controller.settings.userMemorySummary;
+      setState(() => _memoryUnlocked = true);
+      return;
+    }
+
+    final pin = await _askTimelinePinForMemory();
+    if (pin == null || !mounted) return;
+    if (!await widget.controller.verifyTimelinePinForExport(pin)) {
+      _showMessage('Die App-PIN stimmt nicht oder ist vorübergehend gesperrt.');
+      return;
+    }
+    _memoryController.text = widget.controller.settings.userMemorySummary;
+    setState(() => _memoryUnlocked = true);
   }
 
   Future<void> _chooseModel() async {
@@ -283,7 +350,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
       final next = _draft.copyWith(
         localModelPath: target.path,
-        userMemorySummary: _memoryController.text.trim(),
+        userMemorySummary: _memoryValue,
       );
       await widget.controller.updateSettings(next);
       if (!mounted) return;
@@ -350,11 +417,11 @@ class _SettingsPageState extends State<SettingsPage> {
       final next = asEmbeddingModel
           ? _draft.copyWith(
               embeddingModelPath: file.path,
-              userMemorySummary: _memoryController.text.trim(),
+              userMemorySummary: _memoryValue,
             )
           : _draft.copyWith(
               localModelPath: file.path,
-              userMemorySummary: _memoryController.text.trim(),
+              userMemorySummary: _memoryValue,
             );
       await widget.controller.updateSettings(next);
       if (!mounted) return;
@@ -429,14 +496,12 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _refreshMemory() async {
     setState(() => _updatingMemory = true);
     try {
-      final current = _draft.copyWith(
-        userMemorySummary: _memoryController.text.trim(),
-      );
+      final current = _draft.copyWith(userMemorySummary: _memoryValue);
       await widget.controller.updateSettings(current);
       await widget.controller.refreshLocalMemory();
       if (!mounted) return;
       _draft = widget.controller.settings;
-      _memoryController.text = _draft.userMemorySummary;
+      if (_memoryUnlocked) _memoryController.text = _draft.userMemorySummary;
       _showMessage('Lokales Gedächtnis aktualisiert.');
     } catch (error) {
       _showMessage(error.toString().replaceFirst('Bad state: ', ''));
@@ -604,33 +669,50 @@ class _SettingsPageState extends State<SettingsPage> {
               asEmbeddingModel: true,
             ),
           const SizedBox(height: 16),
-          TextField(
-            controller: _memoryController,
-            minLines: 2,
-            maxLines: 5,
-            decoration: const InputDecoration(
-              labelText: 'Was fi über deine Vorlieben wissen soll',
-              hintText: 'Nur lokal gespeichert. Du kannst den Text ansehen, ändern oder löschen.',
-              border: OutlineInputBorder(),
+          if (_memoryUnlocked) ...[
+            TextField(
+              key: const ValueKey('user-memory-summary-input'),
+              controller: _memoryController,
+              minLines: 2,
+              maxLines: 5,
+              decoration: const InputDecoration(
+                labelText: 'Was fi über deine Vorlieben wissen soll',
+                hintText: 'Nur lokal gespeichert. Du kannst den Text ansehen, ändern oder löschen.',
+                border: OutlineInputBorder(),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          FilledButton.tonalIcon(
-            onPressed: settings.localModelPath.isEmpty || _updatingMemory
-                ? null
-                : _refreshMemory,
-            icon: _updatingMemory
-                ? const SizedBox.square(
-                    dimension: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.auto_awesome_outlined),
-            label: Text(
-              _updatingMemory
-                  ? 'Aktualisiere lokal…'
-                  : 'Memory aus letzten Einträgen aktualisieren',
+            const SizedBox(height: 8),
+            FilledButton.tonalIcon(
+              onPressed: settings.localModelPath.isEmpty || _updatingMemory
+                  ? null
+                  : _refreshMemory,
+              icon: _updatingMemory
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.auto_awesome_outlined),
+              label: Text(
+                _updatingMemory
+                    ? 'Aktualisiere lokal…'
+                    : 'Memory aus letzten Einträgen aktualisieren',
+              ),
             ),
-          ),
+          ] else
+            OutlinedButton.icon(
+              key: const ValueKey('unlock-user-memory-button'),
+              onPressed: _unlockMemory,
+              icon: Icon(
+                widget.controller.hasTimelinePin
+                    ? Icons.lock_open_outlined
+                    : Icons.pin_outlined,
+              ),
+              label: Text(
+                widget.controller.hasTimelinePin
+                    ? 'Vorlieben mit App-PIN entsperren'
+                    : 'App-PIN einrichten, um Vorlieben zu schützen',
+              ),
+            ),
           const SizedBox(height: 8),
           Text(
             'Quelle: Qwen-Team auf Hugging Face. Die angebotenen Gewichte '
@@ -723,6 +805,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _modelDownloadService.cancel();
     _memoryController.dispose();
     super.dispose();
