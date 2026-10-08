@@ -128,6 +128,28 @@ class _SettingsPageState extends State<SettingsPage>
       return;
     }
 
+    final availableDays =
+        widget.controller.entries
+            .map((entry) {
+              final date = entry.createdAt.toLocal();
+              return DateTime(date.year, date.month, date.day);
+            })
+            .toSet()
+            .toList()
+          ..sort();
+    final selectedRange = await showDateRangePicker(
+      context: context,
+      firstDate: availableDays.first,
+      lastDate: availableDays.last,
+      initialDateRange: DateTimeRange(
+        start: availableDays.first,
+        end: availableDays.last,
+      ),
+      helpText: 'Exportzeitraum auswählen',
+      saveText: 'Zeitraum verwenden',
+    );
+    if (selectedRange == null) return;
+
     final pin = await _askTimelinePinForExport();
     if (pin == null) return;
     if (!await widget.controller.verifyTimelinePinForExport(pin)) {
@@ -139,15 +161,14 @@ class _SettingsPageState extends State<SettingsPage>
       final bytes = DailyTextExportService().createEncryptedZip(
         widget.controller.entries,
         pin,
+        startDate: selectedRange.start,
+        endDate: selectedRange.end,
       );
-      final now = DateTime.now();
-      final date =
-          '${(now.year % 100).toString().padLeft(2, '0')}'
-          '${now.month.toString().padLeft(2, '0')}'
-          '${now.day.toString().padLeft(2, '0')}';
+      final start = _exportDateLabel(selectedRange.start);
+      final end = _exportDateLabel(selectedRange.end);
       final path = await FilePicker.saveFile(
         dialogTitle: 'PIN-geschütztes Tagebuch-ZIP speichern',
-        fileName: 'filterlos-ich-export-$date.zip',
+        fileName: 'filterlos-ich-export-$start-$end.zip',
         bytes: Uint8List.fromList(bytes),
         mimeType: 'application/zip',
         type: FileType.custom,
@@ -158,6 +179,11 @@ class _SettingsPageState extends State<SettingsPage>
       _showMessage(error.toString().replaceFirst('Invalid argument(s): ', ''));
     }
   }
+
+  String _exportDateLabel(DateTime value) =>
+      '${(value.year % 100).toString().padLeft(2, '0')}'
+      '${value.month.toString().padLeft(2, '0')}'
+      '${value.day.toString().padLeft(2, '0')}';
 
   Future<void> _importBackup() async {
     final approved = await showDialog<bool>(

@@ -58,6 +58,83 @@ void main() {
     );
   });
 
+  test('daily text ZIP includes only the selected date range', () {
+    final bytes = DailyTextExportService().createEncryptedZip(
+      [
+        JournalEntry(
+          id: 'before',
+          categoryId: 'thought',
+          createdAt: DateTime(2026, 10, 7, 23, 59),
+          text: 'Außerhalb davor.',
+        ),
+        JournalEntry(
+          id: 'start',
+          categoryId: 'joy',
+          createdAt: DateTime(2026, 10, 8, 8),
+          text: 'Starttag.',
+        ),
+        JournalEntry(
+          id: 'end',
+          categoryId: 'vent',
+          createdAt: DateTime(2026, 10, 9, 23, 59),
+          text: 'Endtag.',
+        ),
+        JournalEntry(
+          id: 'after',
+          categoryId: 'thought',
+          createdAt: DateTime(2026, 10, 10),
+          text: 'Außerhalb danach.',
+        ),
+      ],
+      '482916',
+      startDate: DateTime(2026, 10, 8, 20),
+      endDate: DateTime(2026, 10, 9, 2),
+    );
+
+    final archive = ZipDecoder().decodeBytes(bytes, password: '482916');
+    expect(archive.files.map((file) => file.name), [
+      '261008.txt',
+      '261009.txt',
+    ]);
+  });
+
+  testWidgets('daily export asks for a date range before the PIN', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final controller = AppController(_MemoryJournalStore());
+    await controller.load();
+    await controller.configurePin('482916');
+    await controller.addEntry(
+      JournalEntry(
+        id: 'range-entry',
+        categoryId: 'thought',
+        createdAt: DateTime(2026, 10, 8, 9),
+        text: 'Zeitraumtest',
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(home: SettingsPage(controller: controller)),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final exportButton = find.byKey(
+      const ValueKey('daily-text-zip-export-button'),
+    );
+    await tester.scrollUntilVisible(
+      exportButton,
+      400,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(exportButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Exportzeitraum auswählen'), findsOneWidget);
+    expect(find.byKey(const ValueKey('daily-export-pin-input')), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   test('journal payload is encrypted and round-trips', () async {
     final tempDirectory = await Directory.systemTemp.createTemp(
       'filterlos_crypto_test_',

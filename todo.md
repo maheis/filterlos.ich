@@ -37,4 +37,4 @@
       das muss die emeotion vom anwender spüren und prüfen ob er grade gut zureden braucht, oder z.b. auch zustimmen und mit schimpfen!
 - [x] "was fi über deine vorlieben wissen soll" muss auch pin geschüttz sein!
 - [x] demo modus um anderen zu zeigen wie die app funktioniert, ohne die timeline offen legen zu müssen!
-- [ ] tage exportieren, muss nicht immer alles sein und eine auswahl des zeitraums ermöglichen
+- [x] tage exportieren, muss nicht immer alles sein und eine auswahl des zeitraums ermöglichen
