@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../app_controller.dart';
+import '../services/daily_text_export_service.dart';
 import '../services/local_model_download_service.dart';
 import '../ui_settings.dart';
 
@@ -60,6 +61,83 @@ class _SettingsPageState extends State<SettingsPage> {
       );
       if (path == null) return;
       _showMessage('Passwort-Backup gespeichert.');
+    } catch (error) {
+      _showMessage(error.toString().replaceFirst('Invalid argument(s): ', ''));
+    }
+  }
+
+  Future<String?> _askTimelinePinForExport() async {
+    final pinController = TextEditingController();
+    try {
+      return await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Tagesexport schützen'),
+          content: TextField(
+            key: const ValueKey('daily-export-pin-input'),
+            controller: pinController,
+            autofocus: true,
+            obscureText: true,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'App-PIN'),
+            onSubmitted: (_) =>
+                Navigator.of(dialogContext).pop(pinController.text),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton(
+              key: const ValueKey('confirm-daily-export-pin'),
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(pinController.text),
+              child: const Text('Exportieren'),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      pinController.dispose();
+    }
+  }
+
+  Future<void> _exportDailyTextZip() async {
+    if (!widget.controller.hasTimelinePin) {
+      _showMessage('Richte zuerst in den Einstellungen eine App-PIN ein.');
+      return;
+    }
+    if (widget.controller.entries.isEmpty) {
+      _showMessage('Das Tagebuch enthält noch keine Einträge.');
+      return;
+    }
+
+    final pin = await _askTimelinePinForExport();
+    if (pin == null) return;
+    if (!await widget.controller.verifyTimelinePinForExport(pin)) {
+      _showMessage('Die App-PIN stimmt nicht oder ist vorübergehend gesperrt.');
+      return;
+    }
+
+    try {
+      final bytes = DailyTextExportService().createEncryptedZip(
+        widget.controller.entries,
+        pin,
+      );
+      final now = DateTime.now();
+      final date =
+          '${(now.year % 100).toString().padLeft(2, '0')}'
+          '${now.month.toString().padLeft(2, '0')}'
+          '${now.day.toString().padLeft(2, '0')}';
+      final path = await FilePicker.saveFile(
+        dialogTitle: 'PIN-geschütztes Tagebuch-ZIP speichern',
+        fileName: 'filterlos-ich-export-$date.zip',
+        bytes: Uint8List.fromList(bytes),
+        mimeType: 'application/zip',
+        type: FileType.custom,
+        allowedExtensions: const ['zip'],
+      );
+      if (path != null) _showMessage('Tagesexport gespeichert.');
     } catch (error) {
       _showMessage(error.toString().replaceFirst('Invalid argument(s): ', ''));
     }
@@ -582,6 +660,13 @@ class _SettingsPageState extends State<SettingsPage> {
             onPressed: _importBackup,
             icon: const Icon(Icons.restore_outlined),
             label: const Text('Backup wiederherstellen'),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            key: const ValueKey('daily-text-zip-export-button'),
+            onPressed: _exportDailyTextZip,
+            icon: const Icon(Icons.folder_zip_outlined),
+            label: const Text('Tageweise als PIN-geschütztes ZIP exportieren'),
           ),
           const Divider(height: 32),
           Text(

@@ -32,3 +32,6 @@
 - [x] fi aufruf auf einem eintrag soll einen chat öffnen und den eintrag als basis hernehmen
 - [x] chat direkt aus der eingabe starten (pin abfrage)
 - [x] default rot als akktzentcolor
+- [x] export tageweise als txt mit pro tag eine datei im namensformat YYMMDD.txt in ein Zip das die app-pin als schutz hat!
+- [x] antwort von der ki fühlt sich noch komisch an... kann aber grade nicht sagen was, aber künstlich!
+      das muss die emeotion vom anwender spüren und prüfen ob er grade gut zureden braucht, oder z.b. auch zustimmen und mit schimpfen!

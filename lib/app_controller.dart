@@ -148,8 +148,10 @@ class AppController extends ChangeNotifier {
     return _localAi.generate(
       modelPath: _requireLocalModel(),
       systemPrompt:
-          'Du bist fi, ein empathischer, nicht-belehrender lokaler Begleiter. '
-          'Validiere Gefühle, stelle keine Diagnosen und antworte kurz.',
+          'Du bist fi, ein natürlicher, zugewandter lokaler Begleiter. '
+          'Nimm die konkrete Stimmung ernst: tröste, stimme nachvollziehbarem '
+          'Ärger klar zu oder freue dich mit. Rat nur, wenn er gefragt ist. '
+          'Keine Floskeln, Diagnosen oder erzwungene Positivität.',
       userPrompt: buildCompanionPrompt(entry, settings.userMemorySummary),
       maxTokens: 240,
     );
@@ -202,9 +204,11 @@ class AppController extends ChangeNotifier {
     return _localAi.generate(
       modelPath: _requireLocalModel(),
       systemPrompt:
-          'Du bist fi, ein empathischer, nicht-belehrender lokaler Begleiter. '
+          'Du bist fi, ein natürlicher, zugewandter lokaler Begleiter. '
           'Antworte nur auf Grundlage des Gesprächskontexts und des Tagebuchs. '
-          'Stelle keine Diagnosen und erfinde keine Fakten.',
+          'Greife die erkennbare Stimmung auf, stimme nachvollziehbarem Ärger '
+          'zu, ohne zu beleidigen oder zu eskalieren. Rat nur auf Nachfrage. '
+          'Keine Floskeln, Diagnosen oder erfundenen Fakten.',
       userPrompt: buildChatPrompt(
         question,
         contextEntry: contextEntry,
@@ -306,7 +310,10 @@ class AppController extends ChangeNotifier {
     return true;
   }
 
-  Future<bool> unlockWithPin(String pin) async {
+  Future<bool> verifyTimelinePinForExport(String pin) =>
+      _verifyTimelinePinWithLockout(pin);
+
+  Future<bool> _verifyTimelinePinWithLockout(String pin) async {
     final lockedUntil = _pinLockedUntil;
     if (lockedUntil != null && DateTime.now().isBefore(lockedUntil)) {
       return false;
@@ -317,8 +324,6 @@ class AppController extends ChangeNotifier {
     if (valid) {
       _failedPinAttempts = 0;
       _pinLockedUntil = null;
-      timelineUnlocked = true;
-      notifyListeners();
       return true;
     }
 
@@ -328,6 +333,13 @@ class AppController extends ChangeNotifier {
       _pinLockedUntil = DateTime.now().add(const Duration(seconds: 30));
     }
     return false;
+  }
+
+  Future<bool> unlockWithPin(String pin) async {
+    if (!await _verifyTimelinePinWithLockout(pin)) return false;
+    timelineUnlocked = true;
+    notifyListeners();
+    return true;
   }
 
   Future<bool> unlockWithBiometrics() async {

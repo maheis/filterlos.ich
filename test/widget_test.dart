@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -9,10 +10,53 @@ import 'package:filterlos_ich/category_icon.dart';
 import 'package:filterlos_ich/models.dart';
 import 'package:filterlos_ich/pages/settings_page.dart';
 import 'package:filterlos_ich/services/encrypted_journal_store.dart';
+import 'package:filterlos_ich/services/daily_text_export_service.dart';
 import 'package:filterlos_ich/services/local_ai_service.dart';
 import 'package:filterlos_ich/ui_settings.dart';
+import 'package:archive/archive.dart';
 
 void main() {
+  test('daily text ZIP groups entries and requires the app PIN', () {
+    final bytes = DailyTextExportService().createEncryptedZip([
+      JournalEntry(
+        id: 'later',
+        categoryId: 'joy',
+        createdAt: DateTime(2026, 10, 8, 18, 30),
+        text: 'Abends war es leichter.',
+      ),
+      JournalEntry(
+        id: 'other-day',
+        categoryId: 'thought',
+        createdAt: DateTime(2026, 10, 9, 7, 15),
+        text: 'Neuer Tag.',
+      ),
+      JournalEntry(
+        id: 'earlier',
+        categoryId: 'vent',
+        createdAt: DateTime(2026, 10, 8, 8, 5),
+        text: 'Das war schwierig.',
+      ),
+    ], '482916');
+
+    final archive = ZipDecoder().decodeBytes(bytes, password: '482916');
+    expect(archive.files.map((file) => file.name), [
+      '261008.txt',
+      '261009.txt',
+    ]);
+    final firstDay = utf8.decode(archive.findFile('261008.txt')!.readBytes()!);
+    expect(firstDay.indexOf('08:05'), lessThan(firstDay.indexOf('18:30')));
+    expect(firstDay, contains('Das war schwierig.'));
+    expect(firstDay, contains('Abends war es leichter.'));
+    expect(
+      () => ZipDecoder()
+          .decodeBytes(bytes, password: '000000')
+          .files
+          .first
+          .readBytes(),
+      throwsA(anything),
+    );
+  });
+
   test('journal payload is encrypted and round-trips', () async {
     final tempDirectory = await Directory.systemTemp.createTemp(
       'filterlos_crypto_test_',
@@ -116,6 +160,11 @@ void main() {
     expect(await store.verifyPin('482916'), isTrue);
     expect(await store.verifyPin('482915'), isFalse);
     expect(secrets.values.values, isNot(contains('482916')));
+
+    final controller = AppController(store);
+    await controller.load();
+    expect(await controller.verifyTimelinePinForExport('482916'), isTrue);
+    expect(controller.timelineUnlocked, isFalse);
   });
 
   test('journal entries can be added and deleted from local state', () async {
@@ -178,6 +227,14 @@ void main() {
 
     expect(buildCompanionPrompt(entry, ''), contains(guidance));
     expect(
+      buildCompanionPrompt(entry, ''),
+      contains('Trost bei Schmerz oder Überforderung'),
+    );
+    expect(
+      buildCompanionPrompt(entry, ''),
+      contains('Rat nur, wenn danach gefragt wird'),
+    );
+    expect(
       buildChatPrompt(
         'Er fühlt sich gerade überfordert.',
         relevantEntries: const [],
@@ -185,6 +242,15 @@ void main() {
         memory: '',
       ),
       contains(guidance),
+    );
+    expect(
+      buildChatPrompt(
+        'Das war unfair.',
+        relevantEntries: const [],
+        history: const [],
+        memory: '',
+      ),
+      contains('ohne Menschen zu beleidigen'),
     );
   });
 
