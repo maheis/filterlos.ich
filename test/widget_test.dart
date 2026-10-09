@@ -9,7 +9,6 @@ import 'package:filterlos_ich/app_controller.dart';
 import 'package:filterlos_ich/category_icon.dart';
 import 'package:filterlos_ich/models.dart';
 import 'package:filterlos_ich/pages/settings_page.dart';
-import 'package:filterlos_ich/pages/demo_page.dart';
 import 'package:filterlos_ich/services/encrypted_journal_store.dart';
 import 'package:filterlos_ich/services/daily_text_export_service.dart';
 import 'package:filterlos_ich/services/local_ai_service.dart';
@@ -479,40 +478,6 @@ void main() {
       findsNothing,
     );
     expect(controller.settings.userMemorySummary, 'Persönlicher Hinweis');
-  });
-
-  testWidgets('demo page never shows real timeline entries', (
-    WidgetTester tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(800, 1200));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    final controller = AppController(_MemoryJournalStore());
-    await controller.load();
-    await controller.addEntry(
-      JournalEntry(
-        id: 'private-demo-marker',
-        categoryId: 'thought',
-        createdAt: DateTime(2026, 10, 8),
-        text: 'PRIVATE_REAL_TIMELINE_MARKER',
-      ),
-    );
-    await tester.pumpWidget(FilterlosApp(controller: controller));
-    await tester.pump(const Duration(milliseconds: 100));
-
-    final demoButton = find.byKey(const ValueKey('open-demo-button'));
-    await tester.ensureVisible(demoButton);
-    await tester.tap(demoButton);
-    await tester.pumpAndSettle();
-
-    expect(find.byType(DemoPage), findsOneWidget);
-    expect(find.text('Demo'), findsOneWidget);
-    expect(find.text('Beispieldaten'), findsOneWidget);
-    expect(
-      find.text('Das Gespräch war anstrengend. Ich darf darüber sauer sein.'),
-      findsOneWidget,
-    );
-    expect(find.text('PRIVATE_REAL_TIMELINE_MARKER'), findsNothing);
-    expect(controller.timelineUnlocked, isFalse);
   });
 
   testWidgets('app opens directly on the six emotion capture grid', (

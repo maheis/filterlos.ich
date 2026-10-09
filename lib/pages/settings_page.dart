@@ -266,14 +266,19 @@ class _SettingsPageState extends State<SettingsPage>
     }
   }
 
-  Future<String?> _askTimelinePinForMemory() {
+  Future<String?> _askAppPin({
+    required String title,
+    required String inputKey,
+    required String confirmKey,
+    required String confirmLabel,
+  }) {
     final pinController = TextEditingController();
     return showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Vorlieben entsperren'),
+        title: Text(title),
         content: TextField(
-          key: const ValueKey('memory-pin-input'),
+          key: ValueKey(inputKey),
           controller: pinController,
           autofocus: true,
           obscureText: true,
@@ -288,10 +293,10 @@ class _SettingsPageState extends State<SettingsPage>
             child: const Text('Abbrechen'),
           ),
           FilledButton(
-            key: const ValueKey('confirm-memory-pin'),
+            key: ValueKey(confirmKey),
             onPressed: () =>
                 Navigator.of(dialogContext).pop(pinController.text),
-            child: const Text('Entsperren'),
+            child: Text(confirmLabel),
           ),
         ],
       ),
@@ -307,7 +312,12 @@ class _SettingsPageState extends State<SettingsPage>
       return;
     }
 
-    final pin = await _askTimelinePinForMemory();
+    final pin = await _askAppPin(
+      title: 'Vorlieben entsperren',
+      inputKey: 'memory-pin-input',
+      confirmKey: 'confirm-memory-pin',
+      confirmLabel: 'Entsperren',
+    );
     if (pin == null || !mounted) return;
     if (!await widget.controller.verifyTimelinePinForExport(pin)) {
       _showMessage('Die App-PIN stimmt nicht oder ist vorübergehend gesperrt.');

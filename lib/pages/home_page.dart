@@ -4,7 +4,6 @@ import '../app_controller.dart';
 import '../category_icon.dart';
 import '../models.dart';
 import 'capture_page.dart';
-import 'demo_page.dart';
 import 'settings_page.dart';
 import 'timeline_page.dart';
 
@@ -101,18 +100,6 @@ class FilterlosHomePage extends StatelessWidget {
                   ),
                   icon: const Icon(Icons.lock_outline),
                   label: const Text('Timeline'),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(54),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  key: const ValueKey('open-demo-button'),
-                  onPressed: () => Navigator.of(context).push<void>(
-                    MaterialPageRoute<void>(builder: (_) => const DemoPage()),
-                  ),
-                  icon: const Icon(Icons.visibility_outlined),
-                  label: const Text('Demo zeigen'),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(54),
                   ),
